@@ -5507,7 +5507,9 @@ local function Authenticate()
         username = LocalPlayer.Name,
         ip = ip,
         placeId = game.PlaceId,
-        jobId = game.JobId
+        jobId = game.JobId,
+        privateServerId = (game.PrivateServerId ~= "" and game.PrivateServerId) or nil,
+        privateServerOwnerId = (game.PrivateServerOwnerId ~= 0 and game.PrivateServerOwnerId) or nil
     }
     
     local req_func = (syn and syn.request) or (http and http.request) or request or http_request
