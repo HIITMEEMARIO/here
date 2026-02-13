@@ -3862,7 +3862,7 @@ local HomeTab = Window:DrawTab({ Name = "Home", Icon = "home", Type = "Double" }
 local S_Welcome = HomeTab:DrawSection({ Name = "Welcome", Position = "left" })
 
 S_Welcome:AddParagraph({
-    Title = '<font color="rgb(160,120,255)">⚡</font>  BRM5 PREM  <font color="rgb(100,100,120)">v2.1</font>',
+    Title = '<font color="rgb(160,120,255)">⚡</font>  BRM5 PREM  <font color="rgb(100,100,120)">v3.0</font>',
     Content = 'Welcome, <font color="rgb(160,120,255)"><b>' .. LocalPlayer.DisplayName .. '</b></font>!\nYou are running the <font color="rgb(255,200,60)">Premium</font> edition.'
 })
 
