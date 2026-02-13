@@ -1,15 +1,78 @@
-
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
--- Cleanup previous instances (Singleton)
+-- [[ SINGLETON / KILL OLD INSTANCE ]]
+if getgenv().Blackhawk_Running then
+    getgenv().Blackhawk_Running = false -- Signal old instance to stop
+    task.wait(0.1)
+end
+getgenv().Blackhawk_Running = true
 local scriptId = tick()
-getgenv().BlackhawkESP_ScriptId = scriptId
+getgenv().Blackhawk_CurrentId = scriptId
 
+-- [[ UI CLEANUP - DESTROY OLD GUI ]]
+-- Try to find existing Compkiller UI in CoreGui (default name is usually 'CompKiller | UI' or similar)
+local CoreGui = game:GetService("CoreGui")
+for _, child in pairs(CoreGui:GetChildren()) do
+    if child.Name == "CompKiller | UI" or child.Name == "CompKiller" then
+        child:Destroy()
+    end
+end
+-- Also check if we stored it in getgenv previously
+if getgenv().Blackhawk_GUI and getgenv().Blackhawk_GUI.Parent then
+    getgenv().Blackhawk_GUI:Destroy()
+end
+
+-- Cleanup previous connections
 if getgenv().BlackhawkESP_Connections then
     for _, conn in pairs(getgenv().BlackhawkESP_Connections) do
         if conn then pcall(function() conn:Disconnect() end) end
     end
 end
 getgenv().BlackhawkESP_Connections = {}
+
+-- [[ AUTO RE-EXECUTE ON TELEPORT ]]
+local function QueueTeleport()
+    local queue = (syn and syn.queue_on_teleport) or queue_on_teleport
+    if queue then
+        queue('if not shared.BRM_Executed then shared.BRM_Executed = true; task.wait(3); loadstring(game:HttpGet("https://raw.githubusercontent.com/HIITMEEMARIO/here/refs/heads/main/v2.lua"))() end')
+    end
+end
+
+-- Disconnect old teleport connection if it exists
+if getgenv().TeleportConn then getgenv().TeleportConn:Disconnect() end
+getgenv().TeleportConn = game:GetService("Players").LocalPlayer.OnTeleport:Connect(QueueTeleport)
+table.insert(getgenv().BlackhawkESP_Connections, getgenv().TeleportConn)
+-- [[ SECURITY SYSTEM (DRM / Anti-Leak) ]] 
+-- HWID-Based Protection powered by Google Apps Script
+local SECURITY_URL = "https://script.google.com/macros/s/AKfycbyzXuryAKcxZxEPICMFcX9NT7pBH4UuOk8R6f03KSn_QifteveKvkx1fdNM-50o0-OD/exec" -- <<< WKLEJ TU SWÓJ LINK
+
+
+-- [[ STAFF / ANTI-CHEAT SYSTEM ]]
+local function CreateTag()
+    local tag = Instance.new("StringValue")
+    tag.Name = "Blackhawk_ActiveUser"
+    tag.Value = "V5_Premium"
+    tag.Parent = game.Players.LocalPlayer
+end
+CreateTag()
+
+getgenv().DetectedUsers = {}
+
+local function RemoteBan(targetUserId)
+    local req_func = (syn and syn.request) or (http and http.request) or request or http_request
+    if req_func then
+        req_func({
+            Url = SECURITY_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = game:GetService("HttpService"):JSONEncode({
+                action = "ban",
+                targetUserId = targetUserId,
+                username = game.Players.LocalPlayer.Name
+            })
+        })
+    end
+end
+
 
 -- Localize Globals and Methods for Performance
 local Vector3_new = Vector3.new
@@ -75,7 +138,11 @@ local ActorManager = {
     _lastTargetUpdate = 0,
     Initialized = false,
     SelectedTarget = nil,
-    SelectedActor = nil
+    SelectedActor = nil,
+    _rageShots = {},
+    _rageShotsNeeded = {},
+    _rageLast = {},
+    _ignoredTargets = {}
 }
 
 -- Forward Declarations
@@ -132,8 +199,8 @@ local Config = {
     NoRecoil = false,
     NoSpread = false,
     UnlockFiremodes = false,
-    CustomRPM = false,
     RPMValue = 800,
+    AutoReload = true,
 
     -- Silent Aim
     SilentAim = false,
@@ -143,6 +210,7 @@ local Config = {
     
     -- Ragebot
     RageMode = false,
+    Rage_BurstSize = 1,
     Rage_LookAt = false,
     Rage_FOV = 360,
     Rage_Range = 500,
@@ -322,10 +390,20 @@ local Places = {
 
 local lastCollections = nil
 
-local function BulkScan() -- High performance scanning engine
+local function BulkScan(retry) -- High performance scanning engine
+    -- Prevent scanning in Menu (optimization), but return proper structure
+    if game.PlaceId == 16173503753 or game.PlaceId == 2916899287 then
+        return {}, {
+            FirearmInventoryClass = {},
+            FirearmInventoryReplicator = {},
+            FirearmInventory = {},
+            TurretController = {}
+        }
+    end
+
     local now = tick()
     -- Only scan if we don't have a cache OR it's been a long time (10s cooldown)
-    if gcCache and (now - lastScan) < 10 then 
+    if not retry and gcCache and (now - lastScan) < 10 then 
         return {
             ReplicatorService = ReplicatorService,
             BulletService = BulletService,
@@ -354,50 +432,72 @@ local function BulkScan() -- High performance scanning engine
     local count = 0
     for _, obj in pairs(res) do
         count = count + 1
-        if count % 8000 == 0 then task.wait() end -- Anti-Lag: Yield every 8k objects
+        -- if count % 8000 == 0 then task.wait() end -- Anti-Lag REMOVED
         
         if type(obj) == "table" then
-            -- 1. IDENTIFY UNIQUE SERVICES (Fingerprinting via rawget)
-            if not found.ReplicatorService and rawget(obj, "Actors") and rawget(obj, "LocalActor") then
+            -- 1. IDENTIFY UNIQUE SERVICES (Fingerprinting via rawget) - ONLY IF MISSING
+            
+            -- ReplicatorService
+            if not ReplicatorService and not found.ReplicatorService and rawget(obj, "Actors") and rawget(obj, "LocalActor") then
                 found.ReplicatorService = obj
-            elseif not found.BulletService and rawget(obj, "_multithreadSend") then
+            
+            -- BulletService
+            elseif not BulletService and not found.BulletService and rawget(obj, "_multithreadSend") then
                 found.BulletService = obj
-            elseif not found.WorldService and rawget(obj, "InactiveWorld") then
+            
+            -- WorldService
+            elseif not WorldService and not found.WorldService and rawget(obj, "InactiveWorld") then
                 found.WorldService = obj
-            elseif not found.ClientService and rawget(obj, "Clients") and rawget(obj, "LocalClient") then
+            
+            -- ClientService
+            elseif not ClientService and not found.ClientService and rawget(obj, "Clients") and rawget(obj, "LocalClient") then
                 found.ClientService = obj
-            elseif not found.VehicleService and rawget(obj, "Vehicles") and rawget(obj, "Changed") then
+            
+            -- VehicleService
+            elseif not VehicleService and not found.VehicleService and rawget(obj, "Vehicles") and rawget(obj, "Changed") then
                 found.VehicleService = obj
-            elseif not found.EnvironmentService and rawget(obj, "RainDensity") and (rawget(obj, "_lights") or rawget(obj, "_clouds")) then
+            
+            -- EnvironmentService
+            elseif not EnvironmentService and not found.EnvironmentService and rawget(obj, "RainDensity") and (rawget(obj, "_lights") or rawget(obj, "_clouds")) then
                 found.EnvironmentService = obj
-            elseif not found.InventoryService and rawget(obj, "Inventories") and (rawget(obj, "_hasRadio") or rawget(obj, "_droppedItems")) then
+            
+            -- InventoryService
+            elseif not InventoryService and not found.InventoryService and rawget(obj, "Inventories") and (rawget(obj, "_hasRadio") or rawget(obj, "_droppedItems")) then
                 found.InventoryService = obj
-            elseif not found.CalibersTable and rawget(obj, "shotgun_12gauge_00buck") then
+            
+            -- CalibersTable
+            elseif not CalibersTable and not found.CalibersTable and rawget(obj, "shotgun_12gauge_00buck") then
                 found.CalibersTable = obj
-            elseif not found.EffectsService and rawget(obj, "BulletLand") and rawget(obj, "BulletFired") then
+            
+            -- EffectsService
+            elseif not EffectsService and not found.EffectsService and rawget(obj, "BulletLand") and rawget(obj, "BulletFired") then
                 found.EffectsService = obj
-            elseif not found.Network and rawget(obj, "FireServer") and rawget(obj, "_events") then
+            
+            -- Network
+            elseif not Network and not found.Network and rawget(obj, "FireServer") and rawget(obj, "_events") then
                 found.Network = obj
-            elseif not found.ControllerService and rawget(obj, "Controller") and type(obj.Controller) == "table" and rawget(obj.Controller, "Update") then
+            
+            -- ControllerService
+            elseif not ControllerService and not found.ControllerService and rawget(obj, "Controller") and type(obj.Controller) == "table" and rawget(obj.Controller, "Update") then
                 found.ControllerService = obj
                 
-            -- 2. IDENTIFY CLASSES AND PROTOTYPES
-            elseif rawget(obj, "SetCFrame") and rawget(obj, "SetVehicleGoal") then
+            -- 2. IDENTIFY CLASSES AND PROTOTYPES (Only scan if needed)
+            elseif not CharacterController and not found.CharacterController and rawget(obj, "SetCFrame") and rawget(obj, "SetVehicleGoal") then
                 if rawget(obj, "__index") == obj or not rawget(obj, "Parent") then 
                     found.CharacterController = obj 
                 end
-            elseif rawget(obj, "Equip") and rawget(obj, "Unequip") and rawget(obj, "Discharge") then
+            elseif not FirearmInventoryClass and not found.FirearmInventoryClass and rawget(obj, "Equip") and rawget(obj, "Unequip") and rawget(obj, "Discharge") then
                 found.FirearmInventoryClass = obj
-            elseif rawget(obj, "Impulse") and rawget(obj, "TimeSkip") and rawget(obj, "GetCameraAdjustment") then
+            elseif not Recoiler and not found.Recoiler and rawget(obj, "Impulse") and rawget(obj, "TimeSkip") and rawget(obj, "GetCameraAdjustment") then
                 found.Recoiler = obj
-            elseif rawget(obj, "Update") and rawget(obj, "_updateLOD") then
+            elseif not ActorClass and not found.ActorClass and rawget(obj, "Update") and rawget(obj, "_updateLOD") then
                 found.ActorClass = obj
-            elseif rawget(obj, "Update") and rawget(obj, "Render") and rawget(obj, "Watch") then
+            elseif not CharacterCamera and not found.CharacterCamera and rawget(obj, "Update") and rawget(obj, "Render") and rawget(obj, "Watch") then
                 found.CharacterCamera = obj
-            elseif rawget(obj, "_discharge") and rawget(obj, "Discharge") then
+            elseif not TurretController and not found.TurretController and rawget(obj, "_discharge") and rawget(obj, "Discharge") then
                 found.TurretController = obj
             
-            -- 3. COLLECT INSTANCES
+            -- 3. COLLECT INSTANCES (ALWAYS SCAN to update lists)
             elseif rawget(obj, "_firearm") and rawget(obj, "_actor") then
                 table.insert(collections.FirearmInventoryReplicator, obj)
             elseif rawget(obj, "_firearm") and rawget(obj, "_bulletsShot") then
@@ -438,20 +538,41 @@ local function BulkScan() -- High performance scanning engine
     lastCollections = collections
     
     print(string_format("[BulkScan] Memory scan took: %.1fms ", (os_clock() - startTime) * 1000))
+    
+    -- RETRY MECHANISM IF CRITICAL SERVICES MISSING
+    if not found.ReplicatorService or not found.BulletService or not found.CharacterController then
+        -- Clean up local references to big table
+        res = nil 
+        found = nil
+        collections = nil
+        
+        if not retry then
+            task.spawn(function()
+                while not (ReplicatorService and BulletService and CharacterController) do
+                    -- IMMEDIATE MEMORY CLEANUP
+                    gcCache = nil -- Drop the huge table from cache
+                    pcall(function() collectgarbage("count"); collectgarbage("collect") end) -- Force Aggressive GC
+                    
+                    print("[BulkScan] Critical services missing. FORCE GC executed. Retrying in 2s...")
+                    task.wait(2)
+                    
+                    -- Force retry scan
+                    BulkScan(true)
+                end
+                
+                print("[BulkScan] All critical services found!")
+            end)
+        end
+    end
+
     return found, collections
 end
 
 -- Helper to find Services via ModuleScript (getnilinstances)
+-- Helper to find Services via ModuleScript (getnilinstances)
 local function FindService_Module(name)
-    local nil_instances = getnilinstances()
-    for _, obj in pairs(nil_instances) do
-        if obj:IsA("ModuleScript") and obj.Name == name then
-            local s, v = pcall(require, obj)
-            if s and type(v) == "table" then
-                return v
-            end
-        end
-    end
+    -- Disabled 'require' based scan as per request
+    -- Using BulkScan as primary method
     return nil
 end
 
@@ -843,7 +964,8 @@ function ActorManager:Update(dt)
                 table.insert(self.Enemies, actor)
                 
                 -- SPATIAL PARTITIONING: Bucket enemy into sector
-                local actorPos = actor.Position or (actor.Character and actor.Character.PrimaryPart and actor.Character.PrimaryPart.Position)
+                -- OPTIMIZATION: actor.Position is engine-interpolated; actor.RootPart is direct ref (no FindFirstChild)
+                local actorPos = actor.Position or (actor.RootPart and actor.RootPart.Position)
                 if actorPos then
                     local sectorKey = GetSectorKey(actorPos, self._sectorSize)
                     if not self._sectors[sectorKey] then
@@ -887,7 +1009,7 @@ function ActorManager:Update(dt)
     -- Ragebot: Ultra-High-Speed Target Acquisition (60Hz = 0.016s)
     -- Ragebot: Direct scan (persistence handled inside GetCombatTarget)
     if self.Initialized and Config.RageMode and GetCombatTarget then
-        local updateInterval = 0.033 -- 30Hz update rate
+        local updateInterval = 0.016 -- 60Hz update rate (was 30Hz)
         
         if not self._lastRageUpdate or (now - self._lastRageUpdate > updateInterval) then
             local target, actor = GetCombatTarget("Rage")
@@ -962,10 +1084,11 @@ local function IsVisible(targetActor, targetPart, origin, isPriority)
     local character = targetPart.Parent
     local originPos = origin or Camera.CFrame.Position
     local direction = (targetPart.Position - originPos)
-    local dist = direction.Magnitude
+    -- OPTIMIZATION: Use engine's LOD_Distance as fast pre-check (avoids Magnitude calc for far targets)
+    local dist = targetActor.LOD_Distance or direction.Magnitude
     
     -- Engine Optimization: Use game's own visibility check first
-    if not targetActor.ViewportOnScreen and (dist > 100) then
+    if not targetActor.ViewportOnScreen and (dist > 100) and not Config.RageMode then
          VisCache[uid] = { result = false, last = now }
          return false
     end
@@ -1090,6 +1213,7 @@ GetCombatTarget = function(mode)
     end
     
     -- PRE-ALLOCATE: Reuse candidates table to reduce GC pressure
+
     local candidates = getgenv()._targetCandidates or table.create(64)
     table.clear(candidates)
     getgenv()._targetCandidates = candidates
@@ -1135,6 +1259,21 @@ GetCombatTarget = function(mode)
         enemyList = ActorManager.Enemies
     end
     
+    -- FAST PATH: Single enemy in Rage mode = skip candidate table entirely
+    if mode == "Rage" and #enemyList == 1 then
+        local actor = enemyList[1]
+        if actor.Alive and actor.Character and actor._cachedShow ~= false then
+            local dist = actor.LOD_Distance or 9999
+            if dist <= maxDistance then
+                local part = actor.Parts and actor.Parts[targetPartName]
+                if not part then part = actor.Parts and (actor.Parts.Head or actor.Parts.UpperTorso) end
+                if part and part.Parent and IsVisible(actor, part, checkOrigin) then
+                    return part, actor
+                end
+            end
+        end
+    end
+    
     -- 1. FAST PRE-FILTER & SCORE (Single pass, minimal allocations)
     for _, actor in pairs(enemyList) do
          -- Quick alive check
@@ -1163,11 +1302,15 @@ GetCombatTarget = function(mode)
          local dist = actor.LOD_Distance
          if not dist or dist <= 0 then
              -- Fallback: Calculate manually only if engine value missing
-             local root = char.PrimaryPart or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-             if not root then continue end
-             
-             local delta = root.Position - checkOrigin
-             dist = math.sqrt(delta.X*delta.X + delta.Y*delta.Y + delta.Z*delta.Z) -- Manual magnitude
+              -- OPTIMIZATION: Use actor.Position or actor.RootPart (direct engine ref, no FindFirstChild)
+              local actorPos = actor.Position
+              if not actorPos then
+                  local root = actor.RootPart or (actor.Parts and actor.Parts.Head)
+                  if not root then continue end
+                  actorPos = root.Position
+              end
+              local delta = actorPos - checkOrigin
+              dist = math.sqrt(delta.X*delta.X + delta.Y*delta.Y + delta.Z*delta.Z)
          end
          
          -- Distance pre-filter (using squared distance when possible)
@@ -1183,10 +1326,15 @@ GetCombatTarget = function(mode)
               -- Early viewport check using engine data
               if not actor.ViewportOnScreen and dist > 50 then continue end
               
-              local root = char.PrimaryPart or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-              if not root then continue end
+              -- OPTIMIZATION: Use engine-interpolated Position instead of PrimaryPart lookup
+              local rootPos = actor.Position
+              if not rootPos then
+                  local root = char.PrimaryPart or char:FindFirstChild("Head")
+                  if not root then continue end
+                  rootPos = root.Position
+              end
               
-              local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+              local pos, onScreen = Camera:WorldToViewportPoint(rootPos)
               if not onScreen then continue end
               
               -- Screen distance (squared for performance)
@@ -1211,7 +1359,20 @@ GetCombatTarget = function(mode)
     if #candidates == 0 then return nil, nil end
     
     -- 2. OPTIMIZED SORT: Use ascending score (best target = lowest score)
-    table.sort(candidates, function(a, b) return a.score < b.score end)
+    -- OPTIMIZATION: Linear min-scan instead of O(n log n) sort
+    -- Ragebot only needs the best target, not a sorted list
+    local bestIdx = 1
+    local bestScore = candidates[1].score
+    for ci = 2, #candidates do
+        if candidates[ci].score < bestScore then
+            bestScore = candidates[ci].score
+            bestIdx = ci
+        end
+    end
+    -- Swap best to front
+    if bestIdx ~= 1 then
+        candidates[1], candidates[bestIdx] = candidates[bestIdx], candidates[1]
+    end
     
     -- 3. VISIBILITY CHECK (Budget-aware, prioritized order)
     for i = 1, #candidates do
@@ -1254,8 +1415,7 @@ local function HookController(controller)
         
         controller.GetMuzzleCFrame = function(self, ...)
             local muzzleCF, v2, v3 = controller._originalMuzzle(self, ...)
-            
-            local isVehicleWeapon = false
+            if not muzzleCF then return muzzleCF, v2, v3 end
             -- Determine if this controller is a vehicle weapon
             if self._actor and not self._actor.IsLocalPlayer and ReplicatorService.LocalActor.Character then
                   local hum = ReplicatorService.LocalActor.Character:FindFirstChild("male")
@@ -1306,6 +1466,8 @@ local function HookController(controller)
                       targetVelocity = targetHead.Parent.PrimaryPart.AssemblyLinearVelocity or Vector3_new(0,0,0)
                  end
                  
+                 if not muzzleCF then return end -- Safety check
+                 
                  local aimPos, travelTime = SolveLead(muzzleCF.Position, targetPos, targetVelocity, muzzle_velocity, gravity)
                  
                  -- Manual compensation removed to avoid double-application. 
@@ -1352,7 +1514,8 @@ local function HookController(controller)
                        local muzzlePos = Camera.CFrame.Position -- Fallback if no Muzzle
                        -- Try to find Muzzle
                        if self._actor and self._actor.Character then
-                           local tool = self._actor.Character:FindFirstChild("HumanoidRootPart")
+                           -- OPTIMIZATION: actor.RootPart is direct engine ref (no FindFirstChild)
+                           local tool = self._actor.RootPart or self._actor.Character.PrimaryPart
                            if tool then muzzlePos = tool.Position end
                        end
                        
@@ -1905,7 +2068,7 @@ function SetupHooks()
             end
         end
     else
-        warn("[ESP] ⚠ Could not find CharacterController.Update to hook!")
+        warn("[ESP] ⚠ Could not find d.Update to hook!")
     end
 end
 
@@ -1913,7 +2076,8 @@ end
     COMBAT LOGIC
 ]]
 local function UpdateCombat(frameId)
-
+    -- OPTIMIZATION: Cache mouse state once per frame (avoid repeated UserInputService calls)
+    local mousePressed = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
     
     local cfg = Config
     local activeVelocity = 2000 -- Already local, keep initial value
@@ -1940,6 +2104,28 @@ local function UpdateCombat(frameId)
     -- JIT Cache & Immediate Modification
     local equippedController = WeaponManager.Equipped or (InventoryService and InventoryService.Equipped and InventoryService.Equipped.Handler)
     
+    -- Auto Reload Logic
+    if equippedController and Config.AutoReload and not equippedController._reloading then
+        local mag = equippedController._mag
+        local meta = equippedController._item and equippedController._item.MetaData
+        if meta and ((not mag or mag.Capacity <= 0) and not meta.Chamber) then
+            -- AMMO CHECK: Only reload if we actually have magazines with ammo
+            local hasMags = false
+            pcall(function()
+                local mags = equippedController:_getMags()
+                if mags and #mags > 0 then hasMags = true end
+            end)
+            
+            if hasMags then
+                pcall(function() 
+                    local vim = game:GetService("VirtualInputManager")
+                    vim:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+                    vim:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+                end)
+            end
+        end
+    end
+    
     -- Cache Combat Targets for this frame
     local targetPart_RB = ActorManager.SelectedTarget_RB
     local targetPart_SA = ActorManager.SelectedTarget_SA
@@ -1962,76 +2148,43 @@ local function UpdateCombat(frameId)
               
               local uid = targetActor.UID
               
-              -- CACHE: Weapon stats for this frame (avoid repeated lookups)
-              local weaponRPM = 600 -- Default
-              local weaponCaliber = equippedController._caliber
-              
-              if equippedController._firearm and equippedController._firearm.Tune then
-                  weaponRPM = equippedController._firearm.Tune.RPM or 600
-              end
-              
-              -- Ammo Check (Fast Path)
-              local magCount = equippedController._mag and equippedController._mag.Capacity or 0
-              local inChamber = (equippedController._item and equippedController._item.MetaData and equippedController._item.MetaData.Chamber) and 1 or 0
-              local totalAmmo = magCount + inChamber
-              
-              if totalAmmo <= 0 then
-                  -- Auto Reload
-                  if equippedController.Reload and not equippedController._reloading then
-                      pcall(function() equippedController:Reload() end)
-                  end
-                  return
-              end
-
-             -- MAP-AWARE RAGEBOT: Different behavior per map type
-             -- PVP = max RPM spray until dead | Zombie/OW = one-tap then switch
-             local mapType = Config.CurrentMapType
-             local isPVP = (mapType == "PVP")
-             
-             -- Debug: Log map-aware mode once
-             if not ActorManager._rageLoggedMap then
-                 ActorManager._rageLoggedMap = true
-                 print(string_format("[Ragebot] Map: %s (%s) | Mode: %s", Config.CurrentMapName or "?", mapType or "?", isPVP and "MAX RPM SPRAY" or "SINGLE-SHOT SWITCH"))
-             end
-             
-             local now = tick()
-             local fireDelay
-             if isPVP then
-                 fireDelay = math.min(60 / weaponRPM, 0.05)
-             else
-                 fireDelay = 0.05
-             end
-             
-             -- Init tracking tables (once)
-             ActorManager._rageLast = ActorManager._rageLast or {}
-             ActorManager._rageShots = ActorManager._rageShots or {}
-             ActorManager._rageShotsNeeded = ActorManager._rageShotsNeeded or {}
-             ActorManager._ignoredTargets = ActorManager._ignoredTargets or {}
-             
-             local lastShot = ActorManager._rageLast[uid] or 0
-             
-             -- Get target HP
-             local targetHP = 100
-             if type(targetActor.Health) == "number" then
-                 targetHP = targetActor.Health
-             elseif type(targetActor.Health) == "table" and targetActor.Health.Health then
-                 targetHP = targetActor.Health.Health
-             end
-             
-             -- Get bullet damage from caliber data
-             local estDamage = 80
-             local targetPartName = Config.Rage_TargetPart or "Head"
-             local calConfig = CalibersTable and weaponCaliber and CalibersTable[weaponCaliber]
-             if calConfig and calConfig.Damage and calConfig.Dropoff and BulletService then
-                 local ok, dmg = pcall(function()
-                     local _, rangeOff = BulletService:GetInfo(weaponCaliber, 10)
-                     return BulletService:GetDamageGraph(0, rangeOff or 0, calConfig.Damage, calConfig.Dropoff, calConfig.Damp or 1, targetPartName)
-                 end)
-                 if ok and dmg and dmg > 0 then
-                     local bullets = calConfig.Bullets or 1
-                     estDamage = dmg * bullets
-                 end
-             end
+               -- CACHE: Weapon stats + damage (cached per weapon change, not per frame)
+               local weaponRPM = 600
+               local weaponCaliber = equippedController._caliber
+               
+               -- Use cached weapon data if same weapon as last frame
+               local cachedWeapon = ActorManager._cachedRageWeapon
+               if cachedWeapon and cachedWeapon.controller == equippedController then
+                   weaponRPM = cachedWeapon.rpm
+                   -- estDamage from cache
+               else
+                   -- Recalculate weapon stats (only on weapon change)
+                   if equippedController._firearm and equippedController._firearm.Tune then
+                       weaponRPM = equippedController._firearm.Tune.RPM or 600
+                   end
+                   
+                   local estDmg = 80
+                   local tgtPartName = Config.Rage_TargetPart or "Head"
+                   local calConfig = CalibersTable and weaponCaliber and CalibersTable[weaponCaliber]
+                   if calConfig and calConfig.Damage and calConfig.Dropoff and BulletService then
+                       local ok, dmg = pcall(function()
+                           local _, rangeOff = BulletService:GetInfo(weaponCaliber, 10)
+                           return BulletService:GetDamageGraph(0, rangeOff or 0, calConfig.Damage, calConfig.Dropoff, calConfig.Damp or 1, tgtPartName)
+                       end)
+                       if ok and dmg and dmg > 0 then
+                           local bullets = calConfig.Bullets or 1
+                           estDmg = dmg * bullets
+                       end
+                   end
+                   
+                   ActorManager._cachedRageWeapon = {
+                       controller = equippedController,
+                       rpm = weaponRPM,
+                       estDamage = estDmg
+                   }
+               end
+               
+               local estDamage = ActorManager._cachedRageWeapon and ActorManager._cachedRageWeapon.estDamage or 80
              
              -- Calculate shots needed based on map type
              local shotsNeeded
@@ -2044,14 +2197,17 @@ local function UpdateCombat(frameId)
                      if shotsNeeded < 1 then shotsNeeded = 1 end
                      ActorManager._rageShotsNeeded[uid] = shotsNeeded
                  end
-                 ignoreTime = 5.0
+                 ignoreTime = 0.5
              else
-                 -- Zombie/OW: Single shot then switch — short ignore for round-robin
-                 shotsNeeded = 1
-                 ignoreTime = 1.5
+                 -- Zombie/OW: Burst shot then switch
+                 shotsNeeded = Config.Rage_BurstSize or 1
+                 ignoreTime = 0.5
              end
              
              local shotsFired = ActorManager._rageShots[uid] or 0
+             local now = tick()
+             local lastShot = ActorManager._rageLast[uid] or 0
+             local fireDelay = 60 / weaponRPM
              
              if shotsFired >= shotsNeeded then
                  -- All needed shots fired — switch to next target
@@ -2059,20 +2215,26 @@ local function UpdateCombat(frameId)
                  ActorManager.SelectedTarget_RB = nil
                  ActorManager.SelectedActor_RB = nil
                  -- Force stop weapon immediately
-                 local method = equippedController._discharge or equippedController.Discharge
-                 if method then pcall(method, equippedController, false) end
-             elseif now - lastShot >= fireDelay then
+                 local method = equippedController.Discharge
+                 -- Stop call removed (single shot logic)
+             elseif (Config.Rage_AutoFire or mousePressed) and (now - lastShot >= fireDelay) then
+                 -- Autofire Safety Check (ALWAYS ACTIVE)
+                 local hasAmmo = (equippedController._mag and equippedController._mag.Capacity > 0) or (equippedController._item and equippedController._item.MetaData and equippedController._item.MetaData.Chamber)
+                 if not hasAmmo then
+                     return
+                 end
+                 
                  -- Fire 1 shot
                  ActorManager._rageLast[uid] = now
                  ActorManager._rageShots[uid] = shotsFired + 1
                  rageDidShoot = true
                  
                  -- Fire weapon: discharge(true) then IMMEDIATE stop
-                 local dischargeMethod = equippedController._discharge or equippedController.Discharge
+                 local dischargeMethod = equippedController.Discharge
                  if dischargeMethod then
-                     pcall(dischargeMethod, equippedController, true)
+                     dischargeMethod(equippedController)
                      -- Immediate synchronous stop (not deferred!)
-                     pcall(dischargeMethod, equippedController, false)
+                     -- Stop call removed (single shot logic)
                  end
                  
                  -- Check if that was the last needed shot
@@ -2087,11 +2249,70 @@ local function UpdateCombat(frameId)
          
          -- SAFETY: Force stop weapon when ragebot is active but NOT shooting this frame
          if Config.RageMode and not rageDidShoot and equippedController._firing 
-            and not UserInputService:IsMouseButton1Pressed() then
-             local method = equippedController._discharge or equippedController.Discharge
-             if method then pcall(method, equippedController, false) end
+            and not mousePressed then
+             local method = equippedController.Discharge
+             -- Stop call removed (single shot logic)
          end
+
+    -- TRIGGERBOT LOGIC (Legit / Silent Aim)
+    if Config.Triggerbot and not Config.RageMode then
+        local targetActor = ActorManager.SelectedActor_SA
+        local validTarget = false
+        
+        if targetActor and targetActor.Alive then
+             -- Silent Aim Target Check
+             validTarget = true
+        else
+             -- Fallback: Raycast forward if no Silent Aim target selected (Legit Triggerbot)
+             local mouse = UserInputService:GetMouseLocation()
+             local ray = Camera:ViewportPointToRay(mouse.X, mouse.Y)
+             local params = RaycastParams.new()
+             params.FilterType = Enum.RaycastFilterType.Exclude
+             params.FilterDescendantsInstances = {Camera, LocalPlayer.Character}
+             local result = Workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
+             
+             if result and result.Instance then
+                 local model = result.Instance:FindFirstAncestorOfClass("Model")
+                 if model then
+                     -- Check if this model is a known enemy
+                     for _, enemy in ipairs(ActorManager.Enemies) do
+                         if enemy.Character == model and enemy.Alive then
+                             validTarget = true
+                             break
+                         end
+                     end
+                 end
+             end
+        end
+        
+        if validTarget then
+             -- Check RPM
+             local weaponRPM = 600
+             if equippedController._firearm and equippedController._firearm.Tune then
+                 weaponRPM = equippedController._firearm.Tune.RPM or 600
+             end
+             
+             local fireDelay = 60 / weaponRPM
+             local lastShot = equippedController._lastTriggerShot or 0
+             local now = tick()
+             
+             if now - lastShot >= fireDelay then
+                 -- Autofire Safety Check (ALWAYS ACTIVE)
+                 local hasAmmo = (equippedController._mag and equippedController._mag.Capacity > 0) or (equippedController._item and equippedController._item.MetaData and equippedController._item.MetaData.Chamber)
+                 if not hasAmmo then
+                     return
+                 end
+
+                 equippedController._lastTriggerShot = now
+                 
+                 -- Fire Weapon directly via Discharge
+                 if equippedController.Discharge then
+                     equippedController:Discharge()
+                 end
+             end
+        end
     end
+    
     
     -- IMMEDIATE HOOK: Vehicle Turret (Manual Fetch)
     -- This ensures we hook the turret even if it's not in the main cache yet
@@ -2245,7 +2466,8 @@ local function UpdateCombat(frameId)
     if (cfg.RageMode or cfg.Spinbot) and ReplicatorService and ReplicatorService.LocalActor then
         local myActor = ReplicatorService.LocalActor
         if myActor.Alive and myActor.Character then
-            local root = myActor.Character:FindFirstChild("Root") or myActor.Character.PrimaryPart
+            -- OPTIMIZATION: actor.RootPart is direct engine ref (no FindFirstChild)
+            local root = myActor.RootPart or myActor.Character.PrimaryPart
             if root then
                 local muzzlePos = GetMuzzlePosition() or Camera.CFrame.Position
                 local targetPos = targetPart_RB and targetPart_RB.Position
@@ -2285,14 +2507,14 @@ local function UpdateCombat(frameId)
     end
 
     -- 4. Update Combat Visuals (FOV, Prediction)
-    local mouse = UserInputService:GetMouseLocation()
-    
-    if FOVCircle then
-        FOVCircle.Visible = Config.SilentAim and Config.ShowFOV
-        if FOVCircle.Visible then
-            FOVCircle.Position = mouse
-            FOVCircle.Radius = Config.SilentAimFOV
-        end
+    -- OPTIMIZATION: Only get mouse location when FOV circle is actually needed
+    if Config.SilentAim and Config.ShowFOV and FOVCircle then
+        local mouse = UserInputService:GetMouseLocation()
+        FOVCircle.Visible = true
+        FOVCircle.Position = mouse
+        FOVCircle.Radius = Config.SilentAimFOV
+    elseif FOVCircle then
+        FOVCircle.Visible = false
     end
     
     -- Optimized Prediction Logic (Using Silent Aim target for visualization)
@@ -2339,6 +2561,7 @@ local function UpdateCombat(frameId)
             dot.Visible = false
         end
     end
+end
 end
 
 local function GetEntityColor(actor, entityType, cachedLocalSquad)
@@ -2793,7 +3016,8 @@ local function ApplyHitboxExpander(actor, espData, cfg)
     
     if not head or not head.Parent then
         local char = actor.Character
-        head = char and char:FindFirstChild("Head")
+        -- OPTIMIZATION: actor.Parts.Head is direct engine ref (no FindFirstChild)
+        head = (actor.Parts and actor.Parts.Head) or (char and char:FindFirstChild("Head"))
         espData.CachedHead = head
     end
     
@@ -2889,7 +3113,8 @@ local function UpdateESPForActor(uid, espData, frameId, cachedCfg, localSquad)
 
         if isVisible then
              local char = actor.Character
-             local target = char and char:FindFirstChild("Head")
+             -- OPTIMIZATION: actor.Parts.Head is direct engine ref (no FindFirstChild)
+             local target = (actor.Parts and actor.Parts.Head) or (char and char:FindFirstChild("Head"))
              if target then
                 local box = sESP.Box
                 pcall(function() 
@@ -2904,6 +3129,9 @@ local function UpdateESPForActor(uid, espData, frameId, cachedCfg, localSquad)
     end
     
     local drawings = espData.Drawing
+    -- OPTIMIZATION: Use engine's ViewportOnScreen + LOD_OnScreen to skip rendering
+    -- Engine pre-calculates ViewportOnScreen via WorldToViewportPoint in Stepped
+    -- and LOD_OnScreen = ViewportOnScreen when LOD > 2 (distance > 256)
     local engineVisible = actor.LOD_OnScreen or (distance < 128 and actor.ViewportOnScreen)
     
     if not engineVisible then
@@ -2911,9 +3139,12 @@ local function UpdateESPForActor(uid, espData, frameId, cachedCfg, localSquad)
         return
     end
     
+    -- OPTIMIZATION: Use engine-interpolated Position (updated every frame in ActorClass.Update)
     local worldPos = actor.Position or (actor.RootPart and actor.RootPart.Position)
     if not worldPos then return end
     
+    -- Still need WorldToViewportPoint for precise screen coordinates, but engine already 
+    -- confirmed it's on screen via ViewportOnScreen check above
     local screen_point, onScreen = Camera:WorldToViewportPoint(worldPos)
     if not onScreen then
         SetAllVisible(drawings, espData, false)
@@ -3152,39 +3383,46 @@ end
     VEHICLE UPDATE LOOP
     Iterates over VehicleService.Vehicles (Engine Table)
 ]]
+local function HideVehicleESP(espData)
+    local drawings = espData.Drawing
+    drawings.Box.Visible = false
+    drawings.BoxOutline.Visible = false
+    drawings.Name.Visible = false
+    drawings.Distance.Visible = false
+    drawings.HealthBar.Visible = false
+    drawings.HealthBarOutline.Visible = false
+    if drawings.Corners then for _, l in ipairs(drawings.Corners) do l.Visible = false end end
+end
+
 local function UpdateESPForVehicle(uid, espData, vehicle, currentFrameId)
     local pos = nil
-    if vehicle.Model.PrimaryPart then pos = vehicle.Model.PrimaryPart.Position else pos = vehicle.CFrame.Position end
+    -- OPTIMIZATION: vehicle.CFrame.Position is engine-maintained; avoid PrimaryPart lookup
+    pos = (vehicle.Model.PrimaryPart and vehicle.Model.PrimaryPart.Position) or vehicle.CFrame.Position
     
-    local dist = (Camera.CFrame.Position - pos).Magnitude
+    -- OPTIMIZATION: Cache camera position for vehicle ESP distance calc
+    local camPos = Camera.CFrame.Position
+    local dv = camPos - pos
+    local dist = math.sqrt(dv.X*dv.X + dv.Y*dv.Y + dv.Z*dv.Z) -- Faster than .Magnitude
     
     if dist > Config.MaxDistance then
-        espData.Drawing.Box.Visible = false
-        espData.Drawing.BoxOutline.Visible = false
-        espData.Drawing.Name.Visible = false
-        espData.Drawing.Distance.Visible = false
-        espData.Drawing.HealthBar.Visible = false
-        espData.Drawing.HealthBarOutline.Visible = false
-        if espData.Drawing.Corners then for _, l in ipairs(espData.Drawing.Corners) do l.Visible = false end end
+        HideVehicleESP(espData)
         return
     end
 
     local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
     
     if not onScreen then
-        espData.Drawing.Box.Visible = false
-        espData.Drawing.BoxOutline.Visible = false
-        espData.Drawing.Name.Visible = false
-        espData.Drawing.Distance.Visible = false
-        espData.Drawing.HealthBar.Visible = false
-        espData.Drawing.HealthBarOutline.Visible = false
-        if espData.Drawing.Corners then for _, l in ipairs(espData.Drawing.Corners) do l.Visible = false end end
+        HideVehicleESP(espData)
         return
     end
     
     espData.LastUpdate = currentFrameId
     
-    local size = vehicle.Model:GetExtentsSize()
+    -- OPTIMIZATION: Cache vehicle extents size (expensive call)
+    if not espData._cachedSize or (currentFrameId % 60 == 0) then
+        espData._cachedSize = vehicle.Model:GetExtentsSize()
+    end
+    local size = espData._cachedSize
     local height = size.Y
     local width = math.max(size.X, size.Z)
     local boxSize = Vector2.new(1000/dist * width, 1000/dist * height) * (Config.BoxScale or 1.0)
@@ -3384,14 +3622,7 @@ local function UpdateVehicles(frameId, cachedCfg)
         local isLocal = (myVehUID == actor.UID)
         if Config.IgnoreLocalVehicle and isLocal then
             if espData and espData._visible ~= false then
-                local drawings = espData.Drawing
-                drawings.Box.Visible = false
-                drawings.BoxOutline.Visible = false
-                drawings.Name.Visible = false
-                drawings.Distance.Visible = false
-                drawings.HealthBar.Visible = false
-                drawings.HealthBarOutline.Visible = false
-                if drawings.Corners then for _,l in ipairs(drawings.Corners) do l.Visible = false end end
+                HideVehicleESP(espData)
                 if espData.Highlight then espData.Highlight.Enabled = false end
                 espData._visible = false
             end
@@ -3449,6 +3680,31 @@ task.spawn(function()
     setreadonly(mt, true)
 end)
 
+-- OPTIMIZATION: Module-level cached config (avoid per-frame table allocation)
+local _cachedCfg = {}
+local _cachedCfgFrame = -30
+
+local function RefreshCachedCfg()
+    _cachedCfg.MaxDistance = Config.MaxDistance or 1000
+    _cachedCfg.UseBoxESP = Config.UseBoxESP
+    _cachedCfg.BoxStyle = Config.BoxStyle
+    _cachedCfg.BoxScale = Config.BoxScale or 1
+    _cachedCfg.BoxColor = Config.BoxColor
+    _cachedCfg.ShowNames = Config.ShowNames
+    _cachedCfg.ShowDistance = Config.ShowDistance
+    _cachedCfg.ShowHealth = Config.ShowHealth
+    _cachedCfg.HealthBarSide = Config.HealthBarSide
+    _cachedCfg.HealthBarColor = Config.HealthBarColor
+    _cachedCfg.UseHealthGradient = Config.UseHealthGradient
+    _cachedCfg.UseTracers = Config.UseTracers
+    _cachedCfg.UseHighlight = Config.UseHighlight
+    _cachedCfg.SimpleESP = Config.SimpleESP
+    _cachedCfg.TextScale = (Config.TextScale or 1.2)
+    _cachedCfg.DynamicTextScaling = true
+    _cachedCfg.HitboxExpander = Config.HitboxExpander
+    _cachedCfg.HitboxSize = Config.HitboxSize
+end
+
 local function UpdateESP()
     if not ESPEnabled and not Config.HitboxExpander then return end
     if not ReplicatorService then return end
@@ -3456,26 +3712,12 @@ local function UpdateESP()
     CurrentFrameId = CurrentFrameId + 1
     local localSquad = ClientService and ClientService.LocalClient and ClientService.LocalClient.Squad
     
-    local cachedCfg = {
-        MaxDistance = Config.MaxDistance or 1000,
-        UseBoxESP = Config.UseBoxESP,
-        BoxStyle = Config.BoxStyle,
-        BoxScale = Config.BoxScale or 1,
-        BoxColor = Config.BoxColor,
-        ShowNames = Config.ShowNames,
-        ShowDistance = Config.ShowDistance,
-        ShowHealth = Config.ShowHealth,
-        HealthBarSide = Config.HealthBarSide,
-        HealthBarColor = Config.HealthBarColor,
-        UseHealthGradient = Config.UseHealthGradient,
-        UseTracers = Config.UseTracers,
-        UseHighlight = Config.UseHighlight,
-        SimpleESP = Config.SimpleESP,
-        TextScale = (Config.TextScale or 1.2),
-        DynamicTextScaling = true,
-        HitboxExpander = Config.HitboxExpander,
-        HitboxSize = Config.HitboxSize
-    }
+    -- OPTIMIZATION: Refresh config cache every 30 frames instead of every frame
+    if CurrentFrameId - _cachedCfgFrame >= 30 then
+        RefreshCachedCfg()
+        _cachedCfgFrame = CurrentFrameId
+    end
+    local cachedCfg = _cachedCfg
     
     -- Process Actor Lists
     local function Process(list)
@@ -3505,10 +3747,12 @@ local function UpdateESP()
         Process(ActorManager.Teammates)
     end
     
-    -- Cleanup stale
-    for uid, espData in pairs(ESPElements) do
-        if espData.Type ~= "Vehicle" and espData.LastUpdate ~= CurrentFrameId then
-            RemoveESP(uid)
+    -- OPTIMIZATION: Cleanup stale ESP elements every 10 frames (not every frame)
+    if CurrentFrameId % 10 == 0 then
+        for uid, espData in pairs(ESPElements) do
+            if espData.Type ~= "Vehicle" and espData.LastUpdate < CurrentFrameId - 5 then
+                RemoveESP(uid)
+            end
         end
     end
 end
@@ -3559,6 +3803,11 @@ local Window = Compkiller.new({
     TextSize = 15,
 });
 
+-- Store GUI reference for Singleton cleanup
+if Window and Window.Screen then
+    getgenv().Blackhawk_GUI = Window.Screen
+end
+
 -- Initialize Config Manager
 local _ConfigManager = Compkiller:ConfigManager({ 
     Directory = "BlackhawkESP", 
@@ -3582,10 +3831,15 @@ local wmFPS = WM:AddText({ Icon = "activity", Text = "0 FPS" })
 local wmPing = WM:AddText({ Icon = "wifi", Text = "0ms" })
 
 -- Update FPS + Ping in Watermark
-task.spawn(function()
-    while task.wait(0.5) do
+-- OPTIMIZATION: FPS watermark without blocking RenderStepped:Wait()
+local _wmFrameCount = 0
+local _wmLastUpdate = 0
+RunService.RenderStepped:Connect(function()
+    _wmFrameCount = _wmFrameCount + 1
+    local now = tick()
+    if now - _wmLastUpdate >= 1 then
         pcall(function()
-            local fps = math.floor(1 / RunService.RenderStepped:Wait())
+            local fps = math.floor(_wmFrameCount / (now - _wmLastUpdate))
             if wmFPS and wmFPS.SetText then
                 wmFPS:SetText(tostring(fps) .. " FPS")
             end
@@ -3594,6 +3848,8 @@ task.spawn(function()
                 wmPing:SetText(tostring(ping) .. "ms")
             end
         end)
+        _wmFrameCount = 0
+        _wmLastUpdate = now
     end
 end)
 
@@ -3636,8 +3892,14 @@ S_Features:AddParagraph({
 local S_Changelog = HomeTab:DrawSection({ Name = "Changelog", Position = "right" })
 
 S_Changelog:AddParagraph({
-    Title = '<font color="rgb(255,200,60)">★</font>  v2.1 — Performance Update',
-    Content = '<font color="rgb(130,255,130)">+</font> Complete Script Optimization\n<font color="rgb(130,255,130)">+</font> Added Vehicle Teleport\n<font color="rgb(130,255,130)">+</font> Improved Ragebot Logic\n<font color="rgb(130,255,130)">+</font> Expanded GUI Features'
+    Title = '<font color="rgb(255,200,60)">★</font>  v3.0 — Security Update',
+    Content = '<font color="rgb(130,255,130)">+</font> Improved Ragebot Logic\n' ..
+              '<font color="rgb(130,255,130)">+</font> Added Auto Reload System\n' ..
+              '<font color="rgb(130,255,130)">+</font> Added Queue on Teleport\n' ..
+              '<font color="rgb(130,255,130)">+</font> Optimized Loading Speed\n' ..
+              '<font color="rgb(130,255,130)">+</font> Enhanced Security\n' ..
+              '<font color="rgb(130,255,130)">+</font> Menu Execute Handler\n' ..
+              '<font color="rgb(130,255,130)">+</font> Added Free User Detection (Kick)'
 })
 
 local S_Server = HomeTab:DrawSection({ Name = "Info", Position = "right" })
@@ -3743,6 +4005,17 @@ S_Rage:AddToggle({
     end 
 })
 
+S_Rage:AddSlider({ 
+    Name = "Burst Size", 
+    Flag = "Rage_BurstSize", 
+    Min = 1, 
+    Max = 10, 
+    Default = 1, 
+    Callback = function(v) 
+        Config.Rage_BurstSize = v 
+    end 
+})
+
 
 -- Gun Mods Section
 local S_GunMods = CombatTab:DrawSection({ Name = "Gun Mods", Position = "right" })
@@ -3835,6 +4108,15 @@ S_SilentAim:AddToggle({
     end 
 })
 
+S_SilentAim:AddToggle({ 
+    Name = "Triggerbot", 
+    Flag = "Combat_Triggerbot", 
+    Default = false,
+    Callback = function(v) 
+        Config.Triggerbot = v
+    end 
+})
+
 -- Hitbox Expander
 S_SilentAim:AddToggle({ 
     Name = "Hitbox Expander", 
@@ -3882,6 +4164,14 @@ S_GunMods:AddToggle({
     end 
 })
 
+S_GunMods:AddToggle({ 
+    Name = "Auto Reload", 
+    Flag = "Combat_AutoReload", 
+    Default = true,
+    Callback = function(v) 
+        Config.AutoReload = v
+    end 
+})
 
 S_GunMods:AddToggle({ 
     Name = "Unlock Firemodes", 
@@ -4231,6 +4521,19 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
     end
 end)
 
+S_Movement:AddSlider({ 
+    Name = "Fly Speed", 
+    Min = 10, 
+    Max = 1000, 
+    Default = 50, 
+    Flag = "Char_FlySpeed", 
+    Callback = function(v) 
+        Config.Character_FlySpeed = v
+    end 
+
+ 
+})
+
 S_Movement:AddToggle({ 
     Name = "Spinbot", 
     Flag = "Char_Spinbot", 
@@ -4251,19 +4554,6 @@ S_Movement:AddSlider({
     end 
 })
  
-S_Movement:AddSlider({ 
-    Name = "Fly Speed", 
-    Min = 10, 
-    Max = 1000, 
-    Default = 50, 
-    Flag = "Char_FlySpeed", 
-    Callback = function(v) 
-        Config.Character_FlySpeed = v
-    end 
-
- 
-})
-
 S_Movement:AddToggle({ 
     Name = "Walk Speed", 
     Flag = "Char_WalkSpeedEnabled", 
@@ -4811,10 +5101,123 @@ S_Atmosphere:AddToggle({
     end
 })
 
+local S_Staff = MiscTab:DrawSection({ Name = "Staff (Anti-Leak)", Position = "right" })
+local DetectedNames = {"None"}
+local SelectedToKick = nil
+
+local D_Detected = S_Staff:AddDropdown({
+    Name = "Detected Users",
+    Values = DetectedNames,
+    Default = "None",
+    Callback = function(v)
+        SelectedToKick = v
+    end
+})
+
+S_Staff:AddButton({
+    Name = "KICK USER",
+    Risky = false,
+    Callback = function()
+        if SelectedToKick and SelectedToKick ~= "None" then
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p.Name == SelectedToKick then
+                    local req_func = (syn and syn.request) or (http and http.request) or request or http_request
+                    if req_func then
+                        req_func({
+                            Url = SECURITY_URL,
+                            Method = "POST",
+                            Headers = {["Content-Type"] = "application/json"},
+                            Body = game:GetService("HttpService"):JSONEncode({
+                                action = "kick",
+                                targetUserId = p.UserId,
+                                username = game.Players.LocalPlayer.Name
+                            })
+                        })
+                    end
+                    Notifier.new({Title = "Staff", Content = "Kicking " .. p.Name .. "...", Duration = 3})
+                    break
+                end
+            end
+        end
+    end
+})
+
+local NotifiedUsers = {}
+task.spawn(function()
+    while task.wait(5) do
+        if getgenv().ScriptUserRank == "Premium" then
+            local currentDetected = {}
+            local foundSomething = false
+            
+            for _, player in pairs(game.Players:GetPlayers()) do
+                -- Sprawdzamy wszystkie obiekty o tej nazwie (na wypadek duplikatów)
+                for _, obj in pairs(player:GetChildren()) do
+                    if obj.Name == "Blackhawk_ActiveUser" and obj:IsA("StringValue") then
+                        if obj.Value == "V5_Standard" then
+                            table.insert(currentDetected, player.Name)
+                            foundSomething = true
+                            
+                            -- POWIADOMIENIE (tylko raz na gracza)
+                            if not NotifiedUsers[player.Name] then
+                                NotifiedUsers[player.Name] = true
+                                Notifier.new({
+                                    Title = "Cheater Detected!",
+                                    Content = player.Name .. " is using Standard version.",
+                                    Duration = 6,
+                                    Icon = "rbxassetid://10734951173" -- lucide-shield-alert
+                                })
+                                print("[STAFF] ALERT: Detected " .. player.Name)
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Czyścimy listę powiadomionych osób, jeśli wyszły z serwera
+            for name in pairs(NotifiedUsers) do
+                if not game.Players:FindFirstChild(name) then
+                    NotifiedUsers[name] = nil
+                end
+            end
+            
+            if #currentDetected == 0 then table.insert(currentDetected, "None") end
+            
+            -- AKTUALIZACJA TABELKI W GUI
+            if D_Detected and D_Detected.SetValues then
+                D_Detected:SetValues(currentDetected)
+            end
+        end
+    end
+end)
+
 -- System Tab (Settings & Appearance)
 local SystemTab = Window:DrawTab({ Name = "System", Icon = "settings", Type = "Double" })
 local S_Appearance = SystemTab:DrawSection({ Name = "Appearance", Position = "left" })
 local S_Settings = SystemTab:DrawSection({ Name = "Settings", Position = "right" })
+
+S_Settings:AddButton({
+    Name = "Force Rescan (Fix)",
+    Callback = function()
+        Notifier.new({Title = "System", Content = "Force rescanning services...", Duration = 3})
+        
+        -- Clear Cache
+        gcCache = nil
+        ReplicatorService = nil
+        BulletService = nil
+        CharacterController = nil
+        
+        -- Force Scan
+        local found = BulkScan(true) -- retry=true forces scan
+        
+        if found and found.ReplicatorService then
+             Notifier.new({Title = "System", Content = "Rescan Complete! Services updated.", Duration = 3})
+             RefreshFirearmControllers(true)
+             SetupHooks()
+        else
+             Notifier.new({Title = "System", Content = "Rescan Failed! Try spawning first.", Duration = 3})
+        end
+    end
+})
 
 -- Appearance
 S_Appearance:AddDropdown({
@@ -4982,13 +5385,16 @@ local frameCount = 0
 local espLoop = RunService.RenderStepped:Connect(function()
     frameCount = (frameCount + 1) % 60
     
-     -- Throttled Updates
+     -- OPTIMIZED: Spread work across frames
      if ActorManager then 
-         ActorManager:Update() 
+         -- ActorManager has internal throttles but still costs tick() checks per frame
+         -- Move to every 2nd frame
+         if frameCount % 2 == 0 then
+             ActorManager:Update() 
+         end
          
-         -- Memory Cleanup & Persistence
-          -- Memory Cleanup: Purge stale rage tracking data (every 60 frames)
-          if frameCount % 60 == 0 then
+         -- Memory Cleanup: Purge stale rage tracking data (every 60 frames)
+          if frameCount == 0 then
               local now = tick()
               if ActorManager._rageLast then
                   for uid, lastTime in pairs(ActorManager._rageLast) do
@@ -5002,15 +5408,24 @@ local espLoop = RunService.RenderStepped:Connect(function()
               end
           end
      end
-     UpdateESP() -- Most items merged here
+     
+     -- ESP: skip entirely when disabled
+     if ESPEnabled or Config.HitboxExpander then
+         UpdateESP()
+     end
     
-    -- Logic runs every 2 frames
-    if frameCount % 2 == 0 then
+    -- Vehicles: every 3 frames (was 2)
+    if frameCount % 3 == 0 then
         UpdateVehicles(frameCount, Config)
     end
     
-    -- CRITICAL: Run Combat Logic EVERY FRAME for maximum Ragebot/Silent Aim speed (144Hz+)
-    UpdateCombat(frameCount)
+    -- Combat: only when features are active (saves CPU when nothing combat-related is on)
+    if Config.SilentAim or Config.RageMode or Config.ShowWeaponInfo 
+       or Config.ShowPrediction or Config.ShowFOV 
+       or Config.NoRecoil or Config.NoSpread or Config.CustomRPM
+       or Config.TurretNoRecoil or Config.TurretNoSpread then
+        UpdateCombat(frameCount)
+    end
 end)
 table.insert(getgenv().BlackhawkESP_Connections, espLoop)
 
@@ -5043,6 +5458,7 @@ if Config.AutoDetectMap then
 end
 
 -- Initialize Services and Hooks Synchronously via initial scan
+-- Initialize Services and Hooks Synchronously via initial scan
 task.spawn(function()
     task.wait(2.5) -- Wait for GUI to initialize and animate first
     if InitializeServices() then
@@ -5072,3 +5488,106 @@ local flyKeybind = UserInputService.InputBegan:Connect(function(input, gameProce
     end
 end)
 table.insert(getgenv().BlackhawkESP_Connections, flyKeybind)
+
+
+-- [[ 🛡️ SECURITY & REMOTE CONTROL SYSTEM (STABLE) ]]
+local function Authenticate()
+    local HttpService = game:GetService("HttpService")
+    local LocalPlayer = game.Players.LocalPlayer
+    
+    local hwid = "Unknown"
+    pcall(function() hwid = (gethwid and gethwid()) or (get_hwid and get_hwid()) or "NoHWID_" .. LocalPlayer.UserId end)
+    
+    local ip = "Unknown"
+    pcall(function() ip = game:HttpGet("https://api.ipify.org") end)
+    
+    local data = {
+        hwid = hwid,
+        userId = LocalPlayer.UserId,
+        username = LocalPlayer.Name,
+        ip = ip,
+        placeId = game.PlaceId,
+        jobId = game.JobId
+    }
+    
+    local req_func = (syn and syn.request) or (http and http.request) or request or http_request
+    if not req_func then return true end
+
+    local success, response = pcall(function()
+        return req_func({
+            Url = SECURITY_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+    
+    if success and response.StatusCode == 200 then
+        local res_success, result = pcall(function() return HttpService:JSONDecode(response.Body) end)
+        if res_success then
+            if result.status == "banned" then
+                LocalPlayer:Kick("\n[SECURITY SERVICE]\n" .. (result.reason or "Access Denied."))
+                return false
+            end
+            
+            -- Remote Vars Overwrite
+            if result.remote then
+                getgenv().StaffMaxSpeedLimit = tonumber(result.remote.maxSpeed) or 100
+                getgenv().StaffForceDisableAimbot = (result.remote.aimbot == "FALSE")
+            end
+
+            -- Display Announcement (Only Once)
+            if result.announce and result.announce ~= "" and not getgenv().AnnouncementShown then
+                getgenv().AnnouncementShown = true
+                task.spawn(function()
+                    task.wait(2)
+                    local msg = result.announce
+                    if result.expiry then msg = msg .. "\n\n " .. result.expiry end
+                    
+                    if Notifier and Notifier.new then
+                        Notifier.new({
+                            Title = "NOTIFY",
+                            Content = msg,
+                            Duration = 8,
+                            Icon = "rbxassetid://10723344270"
+                        })
+                    else
+                        warn("[ADMIN MESSAGE]: " .. msg)
+                    end
+                end)
+            end
+
+            getgenv().ScriptUserRank = result.rank or "User"
+            return true
+        end
+    end
+    return true
+end
+
+-- Start Heartbeat
+task.spawn(function()
+    while task.wait(5) do
+        -- KILL SWITCH CHECK
+        if not getgenv().Blackhawk_Running or getgenv().Blackhawk_CurrentId ~= scriptId then 
+            print("[SECURITY] Killing old heartbeat loop.")
+            break 
+        end
+        
+        if not Authenticate() then break end
+        
+        -- Apply Remote Troll Overwrites
+        pcall(function()
+            if getgenv().StaffForceDisableAimbot then
+                Config.Aimbot_Enabled = false
+            end
+            if getgenv().StaffMaxSpeedLimit and Config.WalkSpeed then
+                if tonumber(Config.WalkSpeed) > tonumber(getgenv().StaffMaxSpeedLimit) then
+                    Config.WalkSpeed = getgenv().StaffMaxSpeedLimit
+                end
+            end
+        end)
+    end
+end)
+
+-- Initial Auth
+Authenticate()
