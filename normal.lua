@@ -2820,7 +2820,7 @@ local Notifier = Compkiller.newNotify();
 
 -- Create Window
 local Window = Compkiller.new({
-    Name = "BRM5 ESP PRO",
+    Name = "VoidSense",
     Keybind = "LeftAlt",
     Logo = "rbxassetid://120245531583106",
     Scale = Compkiller.Scale.Window,
