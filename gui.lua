@@ -1480,7 +1480,7 @@ function Compkiller:SetAllText(flags : {[string] : string})
 end;
 
 function Compkiller:_GetIcon(name : string , font_aws) : string
-	if not name or name == "" then return "" end;
+	if not name or name == "" or name == "default" then return Compkiller.Logo end;
 	local s_name = tostring(name)
 	if string.find(s_name, "://", 1, true) or string.find(s_name, "http", 1, true) or #s_name > 36 then
 		return name
@@ -6505,7 +6505,7 @@ function Compkiller.new(Config : Window)
 	WindowLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	WindowLabel.BorderSizePixel = 0
 	WindowLabel.AnchorPoint = Vector2.new(0, 0.5)
-	WindowLabel.Position = UDim2.new(0, 83, 0, 42)
+	WindowLabel.Position = UDim2.new(0, 78, 0, 42)
 	WindowLabel.Size = UDim2.new(0, 200, 0, 25)
 	WindowLabel.Font = Enum.Font.GothamBold
 	WindowLabel.Text = Config.Name
@@ -6773,7 +6773,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 83,0, 42),
+				Position = UDim2.new(0, 78,0, 42),
 				TextTransparency = 0
 			});
 
@@ -6792,7 +6792,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 83 + 25,0, 42),
+				Position = UDim2.new(0, 78 + 25,0, 42),
 				TextTransparency = 1
 			});
 
