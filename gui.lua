@@ -357,7 +357,7 @@ local CurrentCamera: Camera? = cloneref(workspace.CurrentCamera);
 
 local Compkiller = {
 	Version = '2.6',
-	Logo = (isfile and isfile("voidsens.png") and (getcustomasset or getsynasset)("voidsens.png")) or "rbxthumb://type=Asset&id=104369921168014&w=420&h=420",
+	Logo = (isfile and isfile("voidsens.png") and (getcustomasset or getsynasset)("voidsens.png")) or "rbxassetid://104369921168014",
 	Windows = {},
 	Scale = {
 		Window = UDim2.new(0, 485,0, 565),
@@ -6465,8 +6465,9 @@ function Compkiller.new(Config : Window)
 	CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	CompLogo.BorderSizePixel = 0
 	CompLogo.Position = UDim2.new(0, 9, 0, 7)
-	CompLogo.Size = UDim2.new(0, 60, 0, 60)
+	CompLogo.Size = UDim2.new(0, 70, 0, 70)
 	CompLogo.Image = Config.Logo
+	CompLogo.ScaleType = Enum.ScaleType.Fit
 	
 	if Compkiller.CustomHighlightMode then
 		CompLogo.ImageColor3 = Compkiller.Colors.Highlight;
@@ -6482,7 +6483,7 @@ function Compkiller.new(Config : Window)
 	WindowLabel.BackgroundTransparency = 1.000
 	WindowLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	WindowLabel.BorderSizePixel = 0
-	WindowLabel.Position = UDim2.new(0, 60, 0, 17)
+	WindowLabel.Position = UDim2.new(0, 90, 0, 30)
 	WindowLabel.Size = UDim2.new(0, 200, 0, 25)
 	WindowLabel.Font = Enum.Font.GothamBold
 	WindowLabel.Text = Config.Name
@@ -6750,7 +6751,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 90,0, 17),
+				Position = UDim2.new(0, 90,0, 30),
 				TextTransparency = 0
 			});
 
@@ -6769,7 +6770,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 90 + 25,0, 17),
+				Position = UDim2.new(0, 90 + 25,0, 30),
 				TextTransparency = 1
 			});
 
