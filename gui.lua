@@ -6477,8 +6477,8 @@ function Compkiller.new(Config : Window)
 
 	LineFrame1.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	LineFrame1.BorderSizePixel = 0
-	LineFrame1.Position = UDim2.new(1, -5, 0, 0)
-	LineFrame1.Size = UDim2.new(0, 20, 1, 0)
+	LineFrame1.Position = UDim2.new(1, 0, 0, 0)
+	LineFrame1.Size = UDim2.new(0, 2, 1, 0)
 
 	CompLogo.Name = Compkiller:_RandomString()
 	CompLogo.Parent = TabFrame
@@ -6487,7 +6487,7 @@ function Compkiller.new(Config : Window)
 	CompLogo.BorderSizePixel = 0
 	CompLogo.AnchorPoint = Vector2.new(0.5, 0.5)
 	CompLogo.Position = UDim2.new(0.5, 0, 0, 45)
-	CompLogo.Size = UDim2.new(0, 70, 0, 70)
+	CompLogo.Size = UDim2.new(0, 65, 0, 65)
 	CompLogo.Image = Config.Logo
 	CompLogo.ScaleType = Enum.ScaleType.Fit
 	CompLogo.ImageColor3 = Color3.new(1,1,1)
@@ -6500,13 +6500,13 @@ function Compkiller.new(Config : Window)
 	WindowLabel.BorderSizePixel = 0
 	WindowLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	WindowLabel.Position = UDim2.new(0.5, 0, 0, 45)
-	WindowLabel.Size = UDim2.new(1, -20, 0, 25)
+	WindowLabel.Size = UDim2.new(1, -10, 0, 25)
 	WindowLabel.TextTransparency = 1 -- Hide text in collapsed mode
 	WindowLabel.Font = Enum.Font.GothamBold
 	WindowLabel.Text = Config.Name
 	WindowLabel.TextColor3 = Compkiller.Colors.SwitchColor
 	WindowLabel.TextSize = Config.TextSize
-	WindowLabel.TextXAlignment = Enum.TextXAlignment.Left
+	WindowLabel.TextXAlignment = Enum.TextXAlignment.Center
 
 	table.insert(Compkiller.Elements.SwitchColor , {
 		Element = WindowLabel,
@@ -6519,7 +6519,7 @@ function Compkiller.new(Config : Window)
 	TabButtons.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	TabButtons.BorderSizePixel = 0
 	TabButtons.Position = UDim2.new(0, 0, 0, 90)
-	TabButtons.Size = UDim2.new(1, -25, 1, -155)
+	TabButtons.Size = UDim2.new(1, 0, 1, -155)
 
 	SelectionFrame.Name = Compkiller:_RandomString()
 	SelectionFrame.Parent = TabButtons
@@ -6527,8 +6527,8 @@ function Compkiller.new(Config : Window)
 	SelectionFrame.BackgroundColor3 = Compkiller.Colors.Highlight
 	SelectionFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	SelectionFrame.BorderSizePixel = 0
-	SelectionFrame.Position = UDim2.new(1, 5, 0, 28)
-	SelectionFrame.Size = UDim2.new(0, 8, 0, 27)
+	SelectionFrame.Position = UDim2.new(1, 0, 0, 28)
+	SelectionFrame.Size = UDim2.new(0, 3, 0, 27)
 
 	table.insert(Compkiller.Elements.Highlight,{
 		Element = SelectionFrame,
@@ -6546,7 +6546,7 @@ function Compkiller.new(Config : Window)
 	TabButtonScrollingFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	TabButtonScrollingFrame.BorderSizePixel = 0
 	TabButtonScrollingFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	TabButtonScrollingFrame.Size = UDim2.new(1, -5, 1, -5)
+	TabButtonScrollingFrame.Size = UDim2.new(1, 0, 1, -5)
 	TabButtonScrollingFrame.BottomImage = ""
 	TabButtonScrollingFrame.ScrollBarThickness = 0
 	TabButtonScrollingFrame.TopImage = ""
@@ -6771,6 +6771,10 @@ function Compkiller.new(Config : Window)
 				Position = UDim2.new(0.5, 0, 0, 45),
 				TextTransparency = 0
 			});
+			Compkiller:_Animation(CompLogo , Style , {
+				Position = UDim2.new(0.5, 0, 0, 45),
+				ImageTransparency = 1 
+			});
 
 			Compkiller:_Animation(UserText , Style , {
 				Position = UDim2.new(0, 55,0, 8),
@@ -6788,6 +6792,10 @@ function Compkiller.new(Config : Window)
 			Compkiller:_Animation(WindowLabel , Style , {
 				Position = UDim2.new(0.5, 0, 0, 45),
 				TextTransparency = 1
+			});
+			Compkiller:_Animation(CompLogo , Style , {
+				Position = UDim2.new(0.5, 0, 0, 45),
+				ImageTransparency = 0
 			});
 
 			Compkiller:_Animation(UserText , Style , {
@@ -10702,5 +10710,4 @@ end;
 
 Compkiller.NilFolder.Name = "Nil-Instances";
 
-return Compkiller;		});
-	end;
+return Compkiller;
