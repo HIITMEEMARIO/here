@@ -10334,22 +10334,46 @@ function Compkiller:Loader(IconId,Duration)
 			Size = UDim2.new(0, 200, 0, 200)
 		});
 
-		task.spawn(function()
-			local TweenService = game:GetService("TweenService")
-			while Icon.Parent do
-				local tween = TweenService:Create(Icon, TweenInfo.new(2, Enum.EasingStyle.Linear), {Rotation = 360})
-				tween:Play()
-				tween.Completed:Wait()
-				if Icon.Parent then Icon.Rotation = 0 end
-			end
-		end)
+		-- Loading Bar UI
+		local BarBackground = Instance.new("Frame")
+		local BarFill = Instance.new("Frame")
+		local BarCorner = Instance.new("UICorner")
+		local FillCorner = Instance.new("UICorner")
+
+		BarBackground.Name = "BarBackground"
+		BarBackground.Parent = Loader
+		BarBackground.AnchorPoint = Vector2.new(0.5, 1)
+		BarBackground.Position = UDim2.new(0.5, 0, 0.85, 0)
+		BarBackground.Size = UDim2.new(0, 300, 0, 4)
+		BarBackground.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+		BarBackground.BorderSizePixel = 0
+		BarBackground.BackgroundTransparency = 1
+
+		BarCorner.CornerRadius = UDim.new(1, 0)
+		BarCorner.Parent = BarBackground
+
+		BarFill.Name = "BarFill"
+		BarFill.Parent = BarBackground
+		BarFill.Size = UDim2.new(0, 0, 1, 0)
+		BarFill.BackgroundColor3 = Compkiller.Colors.Highlight
+		BarFill.BorderSizePixel = 0
+
+		FillCorner.CornerRadius = UDim.new(1, 0)
+		FillCorner.Parent = BarFill
+
+		-- Fade in Bar Background
+		Compkiller:_Animation(BarBackground, TweenInfo.new(0.5), {BackgroundTransparency = 0})
+
+		-- Animate Bar Fill
+		local loadTime = Duration or 4.5
+		Compkiller:_Animation(BarFill, TweenInfo.new(loadTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 1, 0)})
 
 		task.delay(0.25,function()
 			Compkiller:_Animation(Vignette,TweenInfo.new(5),{
 				ImageTransparency = 0.2
 			});
 
-			task.wait(Duration or 4.5)
+			task.wait(loadTime)
 
 			Compkiller:_Animation(Vignette,TweenInfo.new(3,Enum.EasingStyle.Quint,Enum.EasingDirection.InOut),{
 				Size = UDim2.new(2, 0, 2, 0)
@@ -10358,6 +10382,10 @@ function Compkiller:Loader(IconId,Duration)
 			Compkiller:_Animation(Icon,TweenInfo.new(0.75,Enum.EasingStyle.Quint,Enum.EasingDirection.InOut),{
 				ImageTransparency = 1,
 			});
+			
+			-- Fade out Bar
+			Compkiller:_Animation(BarBackground, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+			Compkiller:_Animation(BarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1})
 
 			Compkiller:_Animation(Loader,TweenInfo.new(1.5,Enum.EasingStyle.Quint,Enum.EasingDirection.InOut),{
 				BackgroundTransparency = 1
