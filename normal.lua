@@ -1,5 +1,5 @@
 
-local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
+local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/HIITMEEMARIO/here/refs/heads/main/gui.lua"))();
 -- Cleanup previous instances (Singleton)
 local scriptId = tick()
 getgenv().BlackhawkESP_ScriptId = scriptId
