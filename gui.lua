@@ -6152,18 +6152,18 @@ function Compkiller:SetTheme(name)
 		};
 	elseif name == "Default" then
 		Compkiller.Colors = {
-			Highlight = Color3.fromRGB(17, 238, 253),
-			Toggle = Color3.fromRGB(14, 203, 213),
-			Risky = Color3.fromRGB(251, 255, 39),
-			BGDBColor = Color3.fromRGB(22, 24, 29),
-			BlockColor = Color3.fromRGB(28, 29, 34),
-			StrokeColor = Color3.fromRGB(37, 38, 43),
-			SwitchColor = Color3.fromRGB(255, 255, 255),
-			DropColor = Color3.fromRGB(33, 35, 39),
-			MouseEnter = Color3.fromRGB(55, 58, 65),
-			BlockBackground = Color3.fromRGB(39, 40, 47),
-			LineColor = Color3.fromRGB(65, 65, 65),
-			HighStrokeColor = Color3.fromRGB(55, 56, 63),
+			Highlight = Color3.fromRGB(128, 128, 128),
+			Toggle = Color3.fromRGB(100, 100, 100),
+			Risky = Color3.fromRGB(255, 255, 0),
+			BGDBColor = Color3.fromRGB(15, 15, 15),
+			BlockColor = Color3.fromRGB(25, 25, 25),
+			StrokeColor = Color3.fromRGB(45, 45, 45),
+			SwitchColor = Color3.fromRGB(220, 220, 220),
+			DropColor = Color3.fromRGB(30, 30, 30),
+			MouseEnter = Color3.fromRGB(50, 50, 50),
+			BlockBackground = Color3.fromRGB(20, 20, 20),
+			LineColor = Color3.fromRGB(60, 60, 60),
+			HighStrokeColor = Color3.fromRGB(70, 70, 70),
 		};
 	elseif name == "Dark Blue" then
 		Compkiller.Colors = {
@@ -10328,11 +10328,20 @@ function Compkiller:Loader(IconId,Duration)
 
 	local Event = Instance.new('BindableEvent');
 
-	task.delay(0.5,function()
 		Compkiller:_Animation(Icon,TweenInfo.new(0.75,Enum.EasingStyle.Quint),{
 			ImageTransparency = 0.01,
 			Size = UDim2.new(0, 200, 0, 200)
 		});
+
+		task.spawn(function()
+			local TweenService = game:GetService("TweenService")
+			while Icon.Parent do
+				local tween = TweenService:Create(Icon, TweenInfo.new(2, Enum.EasingStyle.Linear), {Rotation = 360})
+				tween:Play()
+				tween.Completed:Wait()
+				if Icon.Parent then Icon.Rotation = 0 end
+			end
+		end)
 
 		task.delay(0.25,function()
 			Compkiller:_Animation(Vignette,TweenInfo.new(5),{
