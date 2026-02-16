@@ -6180,6 +6180,20 @@ function Compkiller:SetTheme(name)
 			["SwitchColor"] = Color3.new(1, 1, 1),
 			["Toggle"] = Color3.new(0.054902, 0.463935, 0.835294)
 		}
+	elseif name == "Purple Premium" then
+		Compkiller.Colors = {
+			["Highlight"] = Color3.fromRGB(160, 120, 255),
+			["Toggle"] = Color3.fromRGB(140, 100, 235),
+			["Risky"] = Color3.fromRGB(255, 200, 60),
+			["BGDBColor"] = Color3.fromRGB(18, 18, 24),
+			["BlockColor"] = Color3.fromRGB(24, 24, 32),
+			["StrokeColor"] = Color3.fromRGB(40, 38, 50),
+			["DropColor"] = Color3.fromRGB(30, 28, 38),
+			["MouseEnter"] = Color3.fromRGB(50, 45, 65),
+			["BlockBackground"] = Color3.fromRGB(34, 32, 44),
+			["LineColor"] = Color3.fromRGB(55, 50, 70),
+			["HighStrokeColor"] = Color3.fromRGB(60, 55, 75),
+		};
 	elseif name == "Purple Rose" then
 		Compkiller.Colors = {
 			["BGDBColor"] = Color3.new(0.0459068, 0.030321, 0.117241),
@@ -10275,6 +10289,7 @@ function Compkiller:ConfigManager(ConfigManager: ConfigManager) : ConfigFunction
 end;
 
 function Compkiller:Loader(IconId,Duration)
+	print("!!! COMPKILLER LOADER STARTED (NO ROTATION VERSION) !!!")
 	local CompKiller = Instance.new("ScreenGui")
 
 	CompKiller.Name = Compkiller:_RandomString()
@@ -10331,7 +10346,7 @@ function Compkiller:Loader(IconId,Duration)
 	task.delay(0.5,function()
 		Compkiller:_Animation(Icon,TweenInfo.new(0.75,Enum.EasingStyle.Quint),{
 			ImageTransparency = 0.01,
-			Size = UDim2.new(0, 200, 0, 200)
+			Size = UDim2.new(0, 350, 0, 350)
 		});
 
 		-- Loading Bar UI
