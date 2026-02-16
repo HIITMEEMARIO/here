@@ -6465,7 +6465,7 @@ function Compkiller.new(Config : Window)
 	CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	CompLogo.BorderSizePixel = 0
 	CompLogo.Position = UDim2.new(0, 9, 0, 7)
-	CompLogo.Size = UDim2.new(0, 70, 0, 70)
+	CompLogo.Size = UDim2.new(0, 60, 0, 60)
 	CompLogo.Image = Config.Logo
 	
 	if Compkiller.CustomHighlightMode then
