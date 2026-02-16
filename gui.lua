@@ -357,7 +357,22 @@ local CurrentCamera: Camera? = cloneref(workspace.CurrentCamera);
 
 local Compkiller = {
 	Version = '2.6',
-	Logo = (isfile and isfile("voidsens.png") and (getcustomasset or getsynasset)("voidsens.png")) or "rbxassetid://104369921168014",
+    -- Auto-download logo if missing
+    Logo = (function()
+        local fileName = "voidsens.png"
+        local url = "https://raw.githubusercontent.com/HIITMEEMARIO/here/main/Projekt_bez_nazwy-removebg-preview.png"
+        
+        if isfile and writefile and not isfile(fileName) then
+            pcall(function()
+                local content = game:HttpGet(url)
+                if content then
+                    writefile(fileName, content)
+                end
+            end)
+        end
+        
+        return (isfile and isfile(fileName) and (getcustomasset or getsynasset)(fileName)) or "rbxthumb://type=Asset&id=104369921168014&w=420&h=420"
+    end)(),
 	Windows = {},
 	Scale = {
 		Window = UDim2.new(0, 485,0, 565),
