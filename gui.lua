@@ -10328,6 +10328,7 @@ function Compkiller:Loader(IconId,Duration)
 
 	local Event = Instance.new('BindableEvent');
 
+	task.delay(0.5,function()
 		Compkiller:_Animation(Icon,TweenInfo.new(0.75,Enum.EasingStyle.Quint),{
 			ImageTransparency = 0.01,
 			Size = UDim2.new(0, 200, 0, 200)
