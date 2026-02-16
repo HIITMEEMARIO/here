@@ -371,7 +371,7 @@ local Compkiller = {
             end)
         end
         
-        return (isfile and isfile(fileName) and (getcustomasset or getsynasset)(fileName)) or url
+        return (isfile and isfile(fileName) and (getcustomasset or getsynasset)(fileName)) or "rbxthumb://type=Asset&id=104369921168014&w=420&h=420"
     end)(),
 	Windows = {},
 	Scale = {
@@ -6485,7 +6485,7 @@ function Compkiller.new(Config : Window)
 	CompLogo.BackgroundTransparency = 1.000
 	CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	CompLogo.BorderSizePixel = 0
-	CompLogo.Position = UDim2.new(0, 9, 0, 7)
+	CompLogo.Position = UDim2.new(0, 7, 0, 10)
 	CompLogo.Size = UDim2.new(0, 70, 0, 70)
 	CompLogo.Image = Config.Logo
 	CompLogo.ScaleType = Enum.ScaleType.Fit
@@ -6505,7 +6505,7 @@ function Compkiller.new(Config : Window)
 	WindowLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	WindowLabel.BorderSizePixel = 0
 	WindowLabel.AnchorPoint = Vector2.new(0, 0.5)
-	WindowLabel.Position = UDim2.new(0, 78, 0, 42)
+	WindowLabel.Position = UDim2.new(0, 85, 0, 45)
 	WindowLabel.Size = UDim2.new(0, 200, 0, 25)
 	WindowLabel.Font = Enum.Font.GothamBold
 	WindowLabel.Text = Config.Name
@@ -6773,13 +6773,12 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 78,0, 42),
+				Position = UDim2.new(0, 85,0, 45),
 				TextTransparency = 0
 			});
 
 			Compkiller:_Animation(UserText , Style , {
 				Position = UDim2.new(0, 55,0, 8),
-				TextTransparency = 0.1
 			});
 
 			Compkiller:_Animation(ExpireText , Style , {
@@ -6792,13 +6791,12 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 78 + 25,0, 42),
+				Position = UDim2.new(0, 85 + 25,0, 45),
 				TextTransparency = 1
 			});
 
 			Compkiller:_Animation(UserText , Style , {
 				Position = UDim2.new(0, 55 + 25,0, 8),
-				TextTransparency = 1
 			});
 
 			Compkiller:_Animation(ExpireText , Style , {
@@ -9666,7 +9664,7 @@ function Compkiller.new(Config : Window)
 
 			table.insert(Compkiller.Elements.BGDBColor,{
 				Element = Logo,
-				Property = 'BackgroundColor3'
+				Property = "BackgroundColor3"
 			});
 
 			Logo.BackgroundTransparency = 0.300
@@ -9705,6 +9703,7 @@ function Compkiller.new(Config : Window)
 			CompLogo.SizeConstraint = Enum.SizeConstraint.RelativeYY
 			CompLogo.ZIndex = 159
 			CompLogo.Image = Config.Logo
+			CompLogo.ScaleType = Enum.ScaleType.Fit
 			
 			if Compkiller.CustomHighlightMode then
 				CompLogo.ImageColor3 = Compkiller.Colors.Highlight;
@@ -10540,10 +10539,11 @@ function Compkiller.newNotify()
 			CompLogo.BackgroundTransparency = 1.000
 			CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			CompLogo.BorderSizePixel = 0
-			CompLogo.Position = UDim2.new(0, 6, 0, 6)
+			CompLogo.AnchorPoint = Vector2.new(0, 0.5)
+			CompLogo.Position = UDim2.new(0, 6, 0.5, 0)
 			CompLogo.Size = UDim2.new(0, 25, 0, 25)
 			CompLogo.ZIndex = 4
-
+			CompLogo.ScaleType = Enum.ScaleType.Fit
 			CompLogo.Image = Compkiller:_GetIcon(Notify.Icon);
 
 			if Compkiller.CustomHighlightMode then
