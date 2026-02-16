@@ -1480,6 +1480,10 @@ function Compkiller:SetAllText(flags : {[string] : string})
 end;
 
 function Compkiller:_GetIcon(name : string , font_aws) : string
+	if string.find(tostring(name), "rbxthumb://", 1, true) or string.find(tostring(name), "rbxassetid://", 1, true) or string.find(tostring(name), "http", 1, true) then
+		return name
+	end
+	
 	if Compkiller.SecureMode then
 		local AssetId;
 
@@ -6498,7 +6502,8 @@ function Compkiller.new(Config : Window)
 	WindowLabel.BackgroundTransparency = 1.000
 	WindowLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	WindowLabel.BorderSizePixel = 0
-	WindowLabel.Position = UDim2.new(0, 90, 0, 30)
+	WindowLabel.AnchorPoint = Vector2.new(0, 0.5)
+	WindowLabel.Position = UDim2.new(0, 90, 0, 42)
 	WindowLabel.Size = UDim2.new(0, 200, 0, 25)
 	WindowLabel.Font = Enum.Font.GothamBold
 	WindowLabel.Text = Config.Name
@@ -6766,7 +6771,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 90,0, 30),
+				Position = UDim2.new(0, 90,0, 42),
 				TextTransparency = 0
 			});
 
@@ -6785,7 +6790,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 90 + 25,0, 30),
+				Position = UDim2.new(0, 90 + 25,0, 42),
 				TextTransparency = 1
 			});
 
@@ -10537,11 +10542,7 @@ function Compkiller.newNotify()
 			CompLogo.Size = UDim2.new(0, 25, 0, 25)
 			CompLogo.ZIndex = 4
 
-			if string.find(Notify.Icon,'cache-ck-',1,true) then	
-				CompLogo.Image = Notify.Icon;
-			else
-				CompLogo.Image = Compkiller:_GetIcon(Notify.Icon);
-			end;
+			CompLogo.Image = Compkiller:_GetIcon(Notify.Icon);
 
 			if Compkiller.CustomHighlightMode then
 				CompLogo.ImageColor3 = Compkiller.Colors.Highlight;
