@@ -6485,28 +6485,23 @@ function Compkiller.new(Config : Window)
 	CompLogo.BackgroundTransparency = 1.000
 	CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	CompLogo.BorderSizePixel = 0
-	CompLogo.Position = UDim2.new(0, 7, 0, 10)
+	CompLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+	CompLogo.Position = UDim2.new(0.5, 0, 0, 45)
 	CompLogo.Size = UDim2.new(0, 70, 0, 70)
 	CompLogo.Image = Config.Logo
 	CompLogo.ScaleType = Enum.ScaleType.Fit
-	
-	if Compkiller.CustomHighlightMode then
-		CompLogo.ImageColor3 = Compkiller.Colors.Highlight;
-		
-		table.insert(Compkiller.Elements.Highlight , {
-			Element = CompLogo,
-			Property = 'ImageColor3'
-		});
-	end;
+	CompLogo.ImageColor3 = Color3.new(1,1,1)
+	CompLogo.ZIndex = 4
 	
 	WindowLabel.Name = Compkiller:_RandomString()
 	WindowLabel.Parent = TabFrame
 	WindowLabel.BackgroundTransparency = 1.000
 	WindowLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	WindowLabel.BorderSizePixel = 0
-	WindowLabel.AnchorPoint = Vector2.new(0, 0.5)
-	WindowLabel.Position = UDim2.new(0, 85, 0, 45)
-	WindowLabel.Size = UDim2.new(0, 200, 0, 25)
+	WindowLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	WindowLabel.Position = UDim2.new(0.5, 0, 0, 45)
+	WindowLabel.Size = UDim2.new(1, -20, 0, 25)
+	WindowLabel.TextTransparency = 1 -- Hide text in collapsed mode
 	WindowLabel.Font = Enum.Font.GothamBold
 	WindowLabel.Text = Config.Name
 	WindowLabel.TextColor3 = Compkiller.Colors.SwitchColor
@@ -6773,7 +6768,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 85,0, 45),
+				Position = UDim2.new(0.5, 0, 0, 45),
 				TextTransparency = 0
 			});
 
@@ -6791,7 +6786,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 85 + 25,0, 45),
+				Position = UDim2.new(0.5, 0, 0, 45),
 				TextTransparency = 1
 			});
 
@@ -10539,14 +10534,15 @@ function Compkiller.newNotify()
 			CompLogo.BackgroundTransparency = 1.000
 			CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			CompLogo.BorderSizePixel = 0
-			CompLogo.AnchorPoint = Vector2.new(0, 0.5)
-			CompLogo.Position = UDim2.new(0, 6, 0.5, 0)
+			CompLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+			CompLogo.Position = UDim2.new(0, 20, 0.5, 0)
 			CompLogo.Size = UDim2.new(0, 25, 0, 25)
 			CompLogo.ZIndex = 4
 			CompLogo.ScaleType = Enum.ScaleType.Fit
 			CompLogo.Image = Compkiller:_GetIcon(Notify.Icon);
+			CompLogo.ImageColor3 = Color3.new(1,1,1)
 
-			if Compkiller.CustomHighlightMode then
+			if Compkiller.CustomHighlightMode and Notify.Icon ~= "default" and Notify.Icon ~= "" then
 				CompLogo.ImageColor3 = Compkiller.Colors.Highlight;
 			end;
 			
@@ -10706,4 +10702,5 @@ end;
 
 Compkiller.NilFolder.Name = "Nil-Instances";
 
-return Compkiller;
+return Compkiller;		});
+	end;
