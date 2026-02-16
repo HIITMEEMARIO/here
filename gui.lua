@@ -6465,7 +6465,7 @@ function Compkiller.new(Config : Window)
 	CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	CompLogo.BorderSizePixel = 0
 	CompLogo.Position = UDim2.new(0, 9, 0, 7)
-	CompLogo.Size = UDim2.new(0, 45, 0, 45)
+	CompLogo.Size = UDim2.new(0, 70, 0, 70)
 	CompLogo.Image = Config.Logo
 	
 	if Compkiller.CustomHighlightMode then
@@ -6500,8 +6500,8 @@ function Compkiller.new(Config : Window)
 	TabButtons.BackgroundTransparency = 1.000
 	TabButtons.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	TabButtons.BorderSizePixel = 0
-	TabButtons.Position = UDim2.new(0, 0, 0, 60)
-	TabButtons.Size = UDim2.new(1, -25, 1, -125)
+	TabButtons.Position = UDim2.new(0, 0, 0, 90)
+	TabButtons.Size = UDim2.new(1, -25, 1, -155)
 
 	SelectionFrame.Name = Compkiller:_RandomString()
 	SelectionFrame.Parent = TabButtons
@@ -6750,7 +6750,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 60,0, 17),
+				Position = UDim2.new(0, 90,0, 17),
 				TextTransparency = 0
 			});
 
@@ -6769,7 +6769,7 @@ function Compkiller.new(Config : Window)
 			});
 
 			Compkiller:_Animation(WindowLabel , Style , {
-				Position = UDim2.new(0, 60 + 25,0, 17),
+				Position = UDim2.new(0, 90 + 25,0, 17),
 				TextTransparency = 1
 			});
 
