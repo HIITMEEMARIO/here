@@ -357,7 +357,7 @@ local CurrentCamera: Camera? = cloneref(workspace.CurrentCamera);
 
 local Compkiller = {
 	Version = '2.6',
-	Logo = (isfile and isfile("voidsens.png") and (getcustomasset or getsynasset)("voidsens.png")) or "rbxassetid://104369921168014",
+	Logo = (isfile and isfile("voidsens.png") and (getcustomasset or getsynasset)("voidsens.png")) or "rbxthumb://type=Asset&id=104369921168014&w=420&h=420",
 	Windows = {},
 	Scale = {
 		Window = UDim2.new(0, 485,0, 565),
