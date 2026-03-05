@@ -1,10 +1,4 @@
--- =====================================================
--- BRM5 Vehicle Tuner & Helicopter God Mode Module
--- Loaded by skriptk.lua — all state stored in getgenv()
--- No local variables used (avoids 200 local limit)
--- =====================================================
 
--- Initialize global namespace
 getgenv()._VehHeliMod = getgenv()._VehHeliMod or {}
 
 getgenv()._VehHeliMod.VehicleTuner = { Enabled = false }
@@ -160,9 +154,9 @@ getgenv()._VehHeliMod.RestoreVehicleTune = function(tune)
     getgenv()._VehHeliMod.OriginalTune = {}
 end
 
-getgenv()._VehHeliMod.ToggleVehicleTuner = function()
+getgenv()._VehHeliMod.ToggleVehicleTuner = function(enabled)
     local mod = getgenv()._VehHeliMod
-    mod.VehicleTuner.Enabled = not mod.VehicleTuner.Enabled
+    mod.VehicleTuner.Enabled = enabled
 
     local ctrl = mod.GetActiveController()
     if not ctrl or not ctrl._tune or not ctrl._solver then
@@ -170,7 +164,7 @@ getgenv()._VehHeliMod.ToggleVehicleTuner = function()
         return false, "Wsiądź do pojazdu naziemnego!"
     end
 
-    if mod.VehicleTuner.Enabled then
+    if enabled then
         mod.SaveVehicleTune(ctrl._tune)
         mod.ApplyVehicleTune(ctrl._tune)
         return true, "ON — Grip:" .. mod.VehicleConfig.FrontGrip .. " Accel:" .. mod.VehicleConfig.AccelerationFactor
@@ -317,9 +311,9 @@ getgenv()._VehHeliMod.RestoreHeliTune = function(ctrl)
     getgenv()._VehHeliMod.OriginalHeliTune = {}
 end
 
-getgenv()._VehHeliMod.ToggleHeliGodMode = function()
+getgenv()._VehHeliMod.ToggleHeliGodMode = function(enabled)
     local mod = getgenv()._VehHeliMod
-    mod.HeliGodMode.Enabled = not mod.HeliGodMode.Enabled
+    mod.HeliGodMode.Enabled = enabled
 
     local ctrl = mod.GetActiveController()
     if not ctrl then
@@ -333,7 +327,7 @@ getgenv()._VehHeliMod.ToggleHeliGodMode = function()
         return false, "Nie jesteś w helikopterze!"
     end
 
-    if mod.HeliGodMode.Enabled then
+    if enabled then
         mod.SaveHeliTune(ctrl)
         mod.ApplyHeliGodMode(ctrl)
         return true, "ON — Stability x" .. mod.HeliConfig.StabilityMult .. " PID x" .. mod.HeliConfig.PIDBoost
