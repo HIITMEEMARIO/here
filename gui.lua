@@ -1677,34 +1677,33 @@ function Compkiller:_Blur(Element: Frame , Signal : Signal)
 			local center = (pos0 + pos1) / 2;
 
 			BlockMesh.Offset = center
-			Part.CFrame = Compkiller.__CAMERA_CFRAME;
+			BlockMesh.Scale  = size / 0.0101;
+			Part.CFrame = CurrentCamera.CFrame;
 		end;
 	end;
 
-	local thread;
-	local rbxsignal = Signal:Connect(function(Visible)
-		Element.Visible = Visible;
+	local rbxsignal = CurrentCamera:GetPropertyChangedSignal('CFrame'):Connect(UpdateFunction)
+	local loopThread = UserInputService.InputChanged:Connect(function(Input)
+		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
+			pcall(UpdateFunction);
+		end;
+	end);
 
-		if Visible then
-			if not thread then
-				thread = RunService.RenderStepped:Connect(UpdateFunction);
-			end;
-		else
-			if thread then
-				thread:Disconnect();
-				thread = nil;
-			end;
+	local THREAD = task.spawn(function()
+		while true do task.wait(0.1)
+			pcall(UpdateFunction);
 		end;
 	end);
 
 	disconnect = function()
 		rbxsignal:Disconnect();
-		if thread then thread:Disconnect() end;
+		loopThread:Disconnect();
+		task.cancel(THREAD);
 		Part:Destroy();
 		DepthOfField:Destroy();
 	end;
 
-	Element.Destroying:Connect(disconnect);
+	element.Destroying:Connect(disconnect);
 
 	return rbxsignal;
 end;
@@ -4144,11 +4143,11 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		ColorPicker:SetColor(Config.Default,Config.Transparency);
 		ColorPicker:Update()
 
-		local ColorPickerArgs = {};
+		local Args = {};
 
-		ColorPickerArgs.Flag = Config.Flag;
+		Args.Flag = Config.Flag;
 
-		function ColorPickerArgs:SetValue(value,opc)
+		function Args:SetValue(value,opc)
 			Config.Default = value;
 			Config.Transparency = opc;
 
@@ -4159,7 +4158,7 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			Config.Callback(value,opc);
 		end;
 
-		function ColorPickerArgs:GetValue()
+		function Args:GetValue()
 			return {
 				ColorPicker = {
 					Color = Config.Default,
@@ -4169,10 +4168,10 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		end;
 
 		if Config.Flag then
-			Compkiller.Flags[Config.Flag] = ColorPickerArgs;
+			Compkiller.Flags[Config.Flag] = Args;
 		end;
 
-		return ColorPickerArgs;
+		return Args;
 	end;
 
 	function Args:AddToggle(Config : MiniToggle)
@@ -7583,6 +7582,32 @@ function Compkiller.new(Config : Window)
 		UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 			task.defer(upd);
 		end);
+
+		return;
+		local Detection = function()
+			local Target = (UilistLayout.AbsoluteContentSize.Y);
+
+			for i,v in next , Parent:GetChildren() do task.wait(0.1)
+				local UIList = v:FindFirstChildWhichIsA('UIListLayout');
+				if v:IsA('Frame') and UIList then
+					if (UIList.AbsoluteContentSize.Y >= Target) or (v.AbsoluteSize.Y >= Target) or (UilistLayout.AbsoluteContentSize.Y > Parent.AbsoluteSize.Y) then
+						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
+						Parent.ScrollingEnabled = true;
+					else
+						Parent.ScrollingEnabled = false;
+						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
+					end;
+				end
+			end;
+		end;
+
+		local Executable = function()
+			while true do task.wait(0.15);
+				pcall(Detection);
+			end;
+		end;
+
+		table.insert(WindowArgs.THREADS,task.spawn(Executable))]]
 	end;
 
 	function WindowArgs:DrawConfig(Configuration : TabConfigManager , Internal)
@@ -9262,17 +9287,27 @@ function Compkiller.new(Config : Window)
 					if originalScale >= Maximum then
 						Frame:SetAttribute('LayoutStacks',originalScale + 5);
 					else
+						Frame:SetAttribute('LayoutStacks',((remainingHeight) + 5));
 					end
-				end
-			end
 
-			TabArgs.SectionInfo = {};
-			TabArgs.SectionClose = {
-				[Upvalue.Left] = {},
-				[Upvalue.Right] = {},
-			};
+					local caller = WindowArgs.THREADS[frame];
 
-			local function updateLeft() TabArgs:_UpdateScrolling(Upvalue.Left, Upvalue.LeftLayout) end;
+					if caller then
+						caller(true);
+					end;
+				end;
+			end;
+		end;
+
+		TabArgs.SectionInfo = {};
+
+		TabArgs.SectionClose = {
+			[Upvalue.Left] = {},
+			[Upvalue.Right] = {},
+		};
+
+
+					local function updateLeft() TabArgs:_UpdateScrolling(Upvalue.Left, Upvalue.LeftLayout) end;
 		local function updateRight() TabArgs:_UpdateScrolling(Upvalue.Right, Upvalue.RightLayout) end;
 
 		Upvalue.LeftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() task.defer(updateLeft) end);
