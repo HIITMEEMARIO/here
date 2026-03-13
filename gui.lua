@@ -3398,78 +3398,79 @@ function Compkiller:_DrawKeybinds(Window: ScreenGui)
 		Root = Keybinds
 	};
 
-	Ref.THREAD = task.spawn(function()
-		while true do task.wait()
-			Compkiller:_Animation(MainFrame,TweenInfo.new(0.4),{
-				Size = UDim2.new(1, 30, 1, UIListLayout.AbsoluteContentSize.Y + 1)
+	local function UpdateKeybindWindow()
+		Compkiller:_Animation(MainFrame,TweenInfo.new(0.4),{
+			Size = UDim2.new(1, 30, 1, UIListLayout.AbsoluteContentSize.Y + 1)
+		});
+
+		if UIListLayout.AbsoluteContentSize.Y > 1 then
+			Compkiller:_Animation(IconFrame,TweenInfo.new(0.25),{
+				BackgroundTransparency = 0.3
+			})
+
+			Compkiller:_Animation(Frame,TweenInfo.new(0.25),{
+				BackgroundTransparency = 0
+			})
+
+			Compkiller:_Animation(HeadLabel,TweenInfo.new(0.25),{
+				TextTransparency = 0
+			})
+
+			Compkiller:_Animation(Icon,TweenInfo.new(0.25),{
+				ImageTransparency = 0
 			});
 
-			if UIListLayout.AbsoluteContentSize.Y > 1 then
-				Compkiller:_Animation(IconFrame,TweenInfo.new(0.25),{
-					BackgroundTransparency = 0.3
-				})
+			local LargF = 100;
 
-				Compkiller:_Animation(Frame,TweenInfo.new(0.25),{
-					BackgroundTransparency = 0
-				})
-
-				Compkiller:_Animation(HeadLabel,TweenInfo.new(0.25),{
-					TextTransparency = 0
-				})
-
-				Compkiller:_Animation(Icon,TweenInfo.new(0.25),{
-					ImageTransparency = 0
-				});
-
-				local LargF = 100;
-
-				for i,v in next , MainFrame:GetChildren() do
-					if v:GetAttribute('AvgScale') then
-						if v:GetAttribute('AvgScale') > LargF then
-							LargF = v:GetAttribute('AvgScale');
-						end;
+			for i,v in next , MainFrame:GetChildren() do
+				if v:GetAttribute('AvgScale') then
+					if v:GetAttribute('AvgScale') > LargF then
+						LargF = v:GetAttribute('AvgScale');
 					end;
 				end;
-
-				Compkiller:_Animation(Keybinds,TweenInfo.new(0.25),{
-					BackgroundTransparency = 0.025,
-					Size = UDim2.new(0, LargF, 0, 25)
-				})
-			else
-				Compkiller:_Animation(HeadLabel,TweenInfo.new(0.25),{
-					TextTransparency = 1
-				})
-
-				Compkiller:_Animation(Keybinds,TweenInfo.new(0.25),{
-					BackgroundTransparency = 1
-				})
-
-				Compkiller:_Animation(IconFrame,TweenInfo.new(0.25),{
-					BackgroundTransparency = 1
-				})
-
-				Compkiller:_Animation(Frame,TweenInfo.new(0.25),{
-					BackgroundTransparency = 1
-				})
-
-				Compkiller:_Animation(Icon,TweenInfo.new(0.25),{
-					ImageTransparency = 1
-				});
 			end;
 
-			Keybinds.Visible = (Keybinds.BackgroundTransparency < 0.9 and true) or false;
+			Compkiller:_Animation(Keybinds,TweenInfo.new(0.25),{
+				BackgroundTransparency = 0.025,
+				Size = UDim2.new(0, LargF, 0, 25)
+			})
+		else
+			Compkiller:_Animation(HeadLabel,TweenInfo.new(0.25),{
+				TextTransparency = 1
+			})
 
-			if Compkiller.PerformanceMode then
-				if Keybinds.Visible then
-					Compkiller:_SetNilP(Keybinds , Window);
-				else
-					Compkiller:_SetNilP(Keybinds , nil);
-				end;
-			else
-				Compkiller:_SetNilP(Keybinds , Window);
-			end;
+			Compkiller:_Animation(Keybinds,TweenInfo.new(0.25),{
+				BackgroundTransparency = 1
+			})
+
+			Compkiller:_Animation(IconFrame,TweenInfo.new(0.25),{
+				BackgroundTransparency = 1
+			})
+
+			Compkiller:_Animation(Frame,TweenInfo.new(0.25),{
+				BackgroundTransparency = 1
+			})
+
+			Compkiller:_Animation(Icon,TweenInfo.new(0.25),{
+				ImageTransparency = 1
+			});
 		end;
-	end);
+
+		Keybinds.Visible = (Keybinds.BackgroundTransparency < 0.9 and true) or false;
+
+		if Compkiller.PerformanceMode then
+			if Keybinds.Visible then
+				Compkiller:_SetNilP(Keybinds , Window);
+			else
+				Compkiller:_SetNilP(Keybinds , nil);
+			end;
+		else
+			Compkiller:_SetNilP(Keybinds , Window);
+		end;
+	end
+
+	UpdateKeybindWindow()
+	UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateKeybindWindow)
 
 	function Ref:AddFrame()
 		local Keyholder = Instance.new("Frame")
@@ -3856,6 +3857,8 @@ function Compkiller:_KeybindHandler(Parent: Frame , ObjectType: string , Element
 
 	function APIRef:LoadSettings(cfg : KeybindSettings)
 		Flag.ShowInKeybindList:SetValue(cfg.Name);
+	function APIRef:LoadSettings(cfg : KeybindSettings)
+		Flag.ShowInKeybindList:SetValue(cfg.Name);
 		Flag.Off:SetValue(cfg.Off);
 		Flag.On:SetValue(cfg.On);
 		Flag.Mode:SetValue(ModeEnum[cfg.Mode]);
@@ -3864,21 +3867,28 @@ function Compkiller:_KeybindHandler(Parent: Frame , ObjectType: string , Element
 		APIRef.Update();
 	end;
 
-	APIRef.Thread = task.spawn(function()
-		while true do task.wait(0.01)
-			if APIRef.Mode ~= 1 then
-				if ElementAPI:GetValue() == APIRef.On then
-					KeybindFrame:SetVisible(true);
-				else
-					KeybindFrame:SetVisible(false);
-				end;
-
-				APIRef.Update();
+	local function UpdateVisibility()
+		if APIRef.Mode ~= 1 then
+			if ElementAPI:GetValue() == APIRef.On then
+				KeybindFrame:SetVisible(true);
 			else
 				KeybindFrame:SetVisible(false);
 			end;
+
+			APIRef.Update();
+		else
+			KeybindFrame:SetVisible(false);
 		end;
-	end)
+	end
+
+	-- Hook into the main element's callback behavior
+	local OriginalCallback = ElementCFG.Callback or function() end
+	ElementCFG.Callback = function(val)
+		OriginalCallback(val)
+		UpdateVisibility()
+	end
+	
+	UpdateVisibility()
 
 	Parent.InputEnded:Connect(function(Input,Typing)
 		if Input.UserInputType == Enum.UserInputType.MouseButton2 and not Typing then
@@ -9276,24 +9286,18 @@ function Compkiller.new(Config : Window)
 			[Upvalue.Right] = {},
 		};
 
-		TabArgs.LeftThread = coroutine.wrap(function()
-			task.wait();
-
-			while true do task.wait(0.01)
+		-- Replace infinite loops with Event Listeners
+		Upvalue.LeftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			task.spawn(function()
 				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
-			end;
-		end);
+			end)
+		end)
 
-		TabArgs.RightThread = coroutine.wrap(function()
-			task.wait(0.1);
-
-			while true do task.wait(0.01)
+		Upvalue.RightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			task.spawn(function()
 				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
-			end;
-		end);
-
-		--TabArgs.LeftThread();
-		--TabArgs.RightThread();
+			end)
+		end)
 
 		function TabArgs:DrawSection(config: Section)
 			config = Compkiller.__CONFIG(config,{
@@ -10000,7 +10004,7 @@ function Compkiller.new(Config : Window)
 			Property = "BackgroundColor3"
 		});
 
-		while true do task.wait(0.01);
+		local function UpdateSelectionUI()
 			BlurElement.Size = UDim2.new(1, TabFrame.AbsoluteSize.X - 35, 1, 0);
 			MovementFrame.Size = UDim2.new(1, TabFrame.AbsoluteSize.X - 35, 1, 0);
 
@@ -10037,7 +10041,12 @@ function Compkiller.new(Config : Window)
 			if WindowArgs.AlwayShowTab then
 				TabHover:Fire(true);
 			end;
-		end;
+		end
+
+		TabButtons:GetPropertyChangedSignal("AbsolutePosition"):Connect(UpdateSelectionUI)
+		TabFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateSelectionUI)
+		WindowOpen:Connect(UpdateSelectionUI)
+		UpdateSelectionUI()
 	end);
 
 	WindowArgs:Update();
