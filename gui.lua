@@ -6472,6 +6472,14 @@ function Compkiller.new(Config : Window)
 	UpdateScale()
 	CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
 
+	MainUIScale:GetPropertyChangedSignal("Scale"):Connect(function()
+		for obj, func in next, WindowArgs.THREADS do
+			if typeof(func) == "function" then
+				func()
+			end
+		end
+	end)
+
 	local TabFrameBaseTrans = 0.25;
 
 	TabFrame.Active = true
@@ -9247,7 +9255,7 @@ function Compkiller.new(Config : Window)
 			end;
 
 			if frame then
-				local originalScale = frame:GetAttribute('OrigninalScale');
+				local originalScale = frame:GetAttribute('OriginalScale');
 
 				if originalScale then
 					local CurrentScale = WindowArgs.MainUIScale.Scale;
@@ -9416,7 +9424,7 @@ function Compkiller.new(Config : Window)
 				end;
 
 				local CurrentScale = WindowArgs.MainUIScale.Scale;
-				Section:SetAttribute('OrigninalScale',UIListLayout.AbsoluteContentSize.Y / CurrentScale);
+				Section:SetAttribute('OriginalScale',UIListLayout.AbsoluteContentSize.Y / CurrentScale);
 
 				if IsOpen then
 					local FullScale = (Section.AbsolutePosition.Y / CurrentScale) + (UIListLayout.AbsoluteContentSize.Y / CurrentScale);
@@ -9513,10 +9521,12 @@ function Compkiller.new(Config : Window)
 				refreshScale();
 			end)
 
-			Section:SetAttribute('HEIGHTSCALE',UIListLayout.AbsoluteContentSize.Y);
+			local CurrentScale = WindowArgs.MainUIScale.Scale;
+			Section:SetAttribute('HEIGHTSCALE',UIListLayout.AbsoluteContentSize.Y / CurrentScale);
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Section:SetAttribute('HEIGHTSCALE',math.max(UIListLayout.AbsoluteContentSize.Y , Section:GetAttribute('HEIGHTSCALE')));
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
+				Section:SetAttribute('HEIGHTSCALE',math.max(UIListLayout.AbsoluteContentSize.Y / CurrentScale , Section:GetAttribute('HEIGHTSCALE') or 0));
 
 				refresh()
 			end);
