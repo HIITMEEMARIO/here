@@ -4144,11 +4144,11 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		ColorPicker:SetColor(Config.Default,Config.Transparency);
 		ColorPicker:Update()
 
-		local Args = {};
+		local ColorPickerArgs = {};
 
-		Args.Flag = Config.Flag;
+		ColorPickerArgs.Flag = Config.Flag;
 
-		function Args:SetValue(value,opc)
+		function ColorPickerArgs:SetValue(value,opc)
 			Config.Default = value;
 			Config.Transparency = opc;
 
@@ -4159,7 +4159,7 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			Config.Callback(value,opc);
 		end;
 
-		function Args:GetValue()
+		function ColorPickerArgs:GetValue()
 			return {
 				ColorPicker = {
 					Color = Config.Default,
@@ -4169,10 +4169,10 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		end;
 
 		if Config.Flag then
-			Compkiller.Flags[Config.Flag] = Args;
+			Compkiller.Flags[Config.Flag] = ColorPickerArgs;
 		end;
 
-		return Args;
+		return ColorPickerArgs;
 	end;
 
 	function Args:AddToggle(Config : MiniToggle)
@@ -4342,29 +4342,6 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			ToggleUI(true);
 		end);
 
-		local function Update(Input, Instant)
-			local Size = math.clamp((Input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1);
-			local Value = math.floor((((config.Max - config.Min) * Size) + config.Min) * (1 / config.Increment)) / (1 / config.Increment);
-
-			if Instant then
-				SliderFill.Size = UDim2.fromScale(Size, 1);
-				SliderValue.Text = tostring(Value) .. config.Suffix;
-			else
-				Compkiller:_Animation(SliderFill, TweenInfo.new(0.1), {
-					Size = UDim2.fromScale(Size, 1)
-				});
-				SliderValue.Text = tostring(Value) .. config.Suffix;
-			end
-
-			pcall(Callback, Value);
-		end;
-
-		SliderBar.InputBegan:Connect(function(Input)
-			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-				Dragging = true;
-				Update(Input, true);
-			end;
-		end);
 		UserInputService.InputBegan:Connect(function(Input)
 			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 				if Toggl and not Compkiller:_IsMouseOverFrame(ExtractElement) and not Compkiller:_IsMouseOverFrame(Element) then
@@ -7606,32 +7583,6 @@ function Compkiller.new(Config : Window)
 		UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 			task.defer(upd);
 		end);
-
-		return;
-		local Detection = function()
-			local Target = (UilistLayout.AbsoluteContentSize.Y);
-
-			for i,v in next , Parent:GetChildren() do task.wait(0.1)
-				local UIList = v:FindFirstChildWhichIsA('UIListLayout');
-				if v:IsA('Frame') and UIList then
-					if (UIList.AbsoluteContentSize.Y >= Target) or (v.AbsoluteSize.Y >= Target) or (UilistLayout.AbsoluteContentSize.Y > Parent.AbsoluteSize.Y) then
-						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
-						Parent.ScrollingEnabled = true;
-					else
-						Parent.ScrollingEnabled = false;
-						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
-					end;
-				end
-			end;
-		end;
-
-		local Executable = function()
-			while true do task.wait(0.15);
-				pcall(Detection);
-			end;
-		end;
-
-		table.insert(WindowArgs.THREADS,task.spawn(Executable))]]
 	end;
 
 	function WindowArgs:DrawConfig(Configuration : TabConfigManager , Internal)
