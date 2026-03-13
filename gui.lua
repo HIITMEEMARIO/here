@@ -6450,7 +6450,7 @@ function Compkiller.new(Config : Window)
 	UICorner.Parent = MainFrame
 
 	local MainUIScale = Instance.new("UIScale")
-	MainUIScale.Parent = MainFrame
+	MainUIScale.Parent = CompKiller
 
 	local function UpdateScale()
 		if Config.AutoScale then
