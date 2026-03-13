@@ -9277,7 +9277,7 @@ function Compkiller.new(Config : Window)
 			[Upvalue.Right] = {},
 		};
 
-		-- Replace infinite loops with Event Listeners
+		-- Event listeners for instant response to content size changes
 		Upvalue.LeftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 			task.spawn(function()
 				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
@@ -9288,6 +9288,14 @@ function Compkiller.new(Config : Window)
 			task.spawn(function()
 				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
 			end)
+		end)
+
+		-- Slow fallback loop for tab switches (no signal available)
+		task.spawn(function()
+			while true do task.wait(0.5)
+				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
+				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
+			end
 		end)
 
 		function TabArgs:DrawSection(config: Section)
