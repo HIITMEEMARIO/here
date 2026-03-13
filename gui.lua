@@ -6352,7 +6352,8 @@ function Compkiller.new(Config : Window)
 		Keybind = "Insert",
 		Logo = Compkiller.Logo;
 		Scale = Compkiller.Scale.Window,
-		TextSize = 15
+		TextSize = 15,
+		AutoScale = false
 	});
 
 	local TabHover = Compkiller.__SIGNAL(false);
@@ -6442,6 +6443,23 @@ function Compkiller.new(Config : Window)
 	});
 
 	UICorner.Parent = MainFrame
+
+	local MainUIScale = Instance.new("UIScale")
+	MainUIScale.Parent = MainFrame
+
+	local function UpdateScale()
+		if Config.AutoScale then
+			local ViewportSize = CurrentCamera.ViewportSize
+			local BaseResolution = Vector2.new(1920, 1080)
+			local Ratio = math.min(ViewportSize.X / BaseResolution.X, ViewportSize.Y / BaseResolution.Y)
+			MainUIScale.Scale = math.clamp(Ratio, 0.5, 1.5)
+		else
+			MainUIScale.Scale = 1
+		end
+	end
+
+	UpdateScale()
+	CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
 
 	local TabFrameBaseTrans = 0.25;
 
