@@ -7550,16 +7550,10 @@ function Compkiller.new(Config : Window)
 
 	function WindowArgs:AddUnbind(UilistLayout: UIListLayout , Scrolling)
 
-		local function upd()
-			local factor = 1
-			local Screen = Scrolling:FindFirstAncestorWhichIsA("ScreenGui")
-			if Screen then
-				local Scale = Screen:FindFirstChildWhichIsA("UIScale")
-				if Scale then factor = Scale.Scale end
-			end
+		local upd = function()
 			Scrolling.ScrollingEnabled = true
 			UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
-			Scrolling.CanvasSize = UDim2.fromOffset(0,(UilistLayout.AbsoluteContentSize.Y / factor) + 5)
+			Scrolling.CanvasSize = UDim2.fromOffset(0,UilistLayout.AbsoluteContentSize.Y + 5)
 		end;
 
 		UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(upd);
