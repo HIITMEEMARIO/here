@@ -9307,7 +9307,7 @@ function Compkiller.new(Config : Window)
 		};
 
 
-					local function updateLeft() TabArgs:_UpdateScrolling(Upvalue.Left, Upvalue.LeftLayout) end;
+		local function updateLeft() TabArgs:_UpdateScrolling(Upvalue.Left, Upvalue.LeftLayout) end;
 		local function updateRight() TabArgs:_UpdateScrolling(Upvalue.Right, Upvalue.RightLayout) end;
 
 		Upvalue.LeftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() task.defer(updateLeft) end);
