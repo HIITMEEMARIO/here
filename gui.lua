@@ -3857,8 +3857,6 @@ function Compkiller:_KeybindHandler(Parent: Frame , ObjectType: string , Element
 
 	function APIRef:LoadSettings(cfg : KeybindSettings)
 		Flag.ShowInKeybindList:SetValue(cfg.Name);
-	function APIRef:LoadSettings(cfg : KeybindSettings)
-		Flag.ShowInKeybindList:SetValue(cfg.Name);
 		Flag.Off:SetValue(cfg.Off);
 		Flag.On:SetValue(cfg.On);
 		Flag.Mode:SetValue(ModeEnum[cfg.Mode]);
