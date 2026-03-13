@@ -2921,13 +2921,14 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 
 		Args.IsVisible = bool;
 
-		local MainPosition = UDim2.new(0,Button.AbsolutePosition.X + 95,0,Button.AbsolutePosition.Y + 65);
+		local CurrentScale = (Compkiller.MainUIScale and Compkiller.MainUIScale.Scale) or 1;
+		local MainPosition = UDim2.new(0,(Button.AbsolutePosition.X + 95) / CurrentScale, 0, (Button.AbsolutePosition.Y + 65) / CurrentScale);
 		local DropPosition = UDim2.new(0,MainPosition.X.Offset,0,MainPosition.Y.Offset + 15);
 
-		local MUL = Window.AbsoluteSize.Y / 2;
+		local MUL = (Window.AbsoluteSize.Y / CurrentScale) / 2;
 
 		if MainPosition.Y.Offset > MUL then -- go up
-			MainPosition = UDim2.fromOffset(Button.AbsolutePosition.X,Button.AbsolutePosition.Y + 45);
+			MainPosition = UDim2.fromOffset(Button.AbsolutePosition.X / CurrentScale,(Button.AbsolutePosition.Y / CurrentScale) + 45);
 			DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
 
 			ColorPickerWindow.AnchorPoint = Vector2.new(0.5,1)
@@ -4048,8 +4049,9 @@ function Compkiller:_LoadOption(Value , TabSignal)
 
 			local scale = TextService:GetTextSize(Helper.Text.Text,Helper.Text.TextSize,Helper.Text.Font,Vector2.new(math.huge,math.huge));
 
+			local CurrentScale = WindowArgs.MainUIScale.Scale;
 			Compkiller:_Animation(Helper.Text , TweenInfo.new(0.15), {
-				Size = UDim2.fromOffset(scale.X + 50, scale.Y + 5)
+				Size = UDim2.fromOffset((scale.X + 50) / CurrentScale, (scale.Y + 5) / CurrentScale)
 			})
 
 			return scale;
@@ -5722,15 +5724,16 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal ,
 
 			local MainScale = ((scale.X > Base.X) and scale.X) or Base.X;
 
+			local CurrentScale = (Compkiller.MainUIScale and Compkiller.MainUIScale.Scale) or 1;
 			local xp = pcall(function()
 				Compkiller:_Animation(LinkValues,TweenInfo.new(0.25),{
-					Size = UDim2.fromOffset(math.clamp(MainScale + 7 , Base.X , TextBox.AbsoluteSize.X / 2) , 16)
+					Size = UDim2.fromOffset(math.clamp((MainScale + 7) / CurrentScale , Base.X / CurrentScale , (TextBox.AbsoluteSize.X / CurrentScale) / 2) , 16)
 				})
 			end);
 
 			if not xp then
 				Compkiller:_Animation(LinkValues,TweenInfo.new(0.25),{
-					Size = UDim2.fromOffset(MainScale + 7 , 16)
+					Size = UDim2.fromOffset((MainScale + 7) / CurrentScale , 16)
 				})
 			end;
 		end;
@@ -6458,6 +6461,7 @@ function Compkiller.new(Config : Window)
 
 	local MainUIScale = Instance.new("UIScale")
 	MainUIScale.Parent = MainFrame
+	Compkiller.MainUIScale = MainUIScale
 	WindowArgs.MainUIScale = MainUIScale
 	Compkiller.MainUIScale = MainUIScale
 
