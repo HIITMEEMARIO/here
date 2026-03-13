@@ -8833,13 +8833,7 @@ function Compkiller.new(Config : Window)
 			Left.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				local factor = 1
-				local Screen = Left:FindFirstAncestorWhichIsA("ScreenGui")
-				if Screen then
-					local Scale = Screen:FindFirstChildWhichIsA("UIScale")
-					if Scale then factor = Scale.Scale end
-				end
-				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y / factor)
+				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y)
 			end)
 
 			UIListLayout.Parent = Left
@@ -8871,13 +8865,7 @@ function Compkiller.new(Config : Window)
 			Upvalue.RightLayout = UIListLayout_2;
 
 			UIListLayout_2:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				local factor = 1
-				local Screen = Right:FindFirstAncestorWhichIsA("ScreenGui")
-				if Screen then
-					local Scale = Screen:FindFirstChildWhichIsA("UIScale")
-					if Scale then factor = Scale.Scale end
-				end
-				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y / factor)
+				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y)
 			end)
 
 			UIListLayout_2.Parent = Right
