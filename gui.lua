@@ -3166,7 +3166,7 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 			end;
 
 			SPAWN_THREAD = task.spawn(function()
-				while true do task.wait(0.00001)
+				while true do task.wait(0.001)
 					if not Args.IsHold then
 						break;	
 					end;
@@ -8754,7 +8754,7 @@ function Compkiller.new(Config : Window)
 			Init.THREAD = task.spawn(function()
 				local OldIndex = Configuration.Config:GetConfigCount();
 
-				while true do task.wait(0.125);
+				while true do task.wait(1);
 					local CountInDirectory = Configuration.Config:GetConfigCount();
 
 					if OldIndex ~= CountInDirectory then
@@ -9891,7 +9891,7 @@ function Compkiller.new(Config : Window)
 		end;
 
 		table.insert(WindowArgs.THREADS,task.spawn(function()
-			while true do task.wait(0.15)
+			while true do task.wait(0.5)
 				if Compkiller:_IsMobile() then
 					ToggleCloseUI(true);
 
@@ -10034,10 +10034,15 @@ function Compkiller.new(Config : Window)
 			end;
 		end
 
-		TabButtons:GetPropertyChangedSignal("AbsolutePosition"):Connect(UpdateSelectionUI)
+		-- Instant response for size/position changes
 		TabFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateSelectionUI)
-		WindowOpen:Connect(UpdateSelectionUI)
-		UpdateSelectionUI()
+
+		-- Slow fallback loop for tab selection changes (no signal available)
+		task.spawn(function()
+			while true do task.wait(0.25)
+				UpdateSelectionUI()
+			end
+		end)
 	end);
 
 	WindowArgs:Update();
