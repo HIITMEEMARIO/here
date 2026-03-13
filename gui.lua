@@ -1819,7 +1819,8 @@ function Compkiller:Drag(InputFrame: Frame, MoveFrame: Frame, Speed : number)
 	local Tween = TweenInfo.new(Speed);
 
 	local updateInput = function(input)
-		local delta = input.Position - dragStart;
+		local CurrentScale = (Compkiller.MainUIScale and Compkiller.MainUIScale.Scale) or 1;
+		local delta = (input.Position - dragStart) / CurrentScale;
 		local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
 			startPos.Y.Scale, startPos.Y.Offset + delta.Y);
 
@@ -3399,8 +3400,9 @@ function Compkiller:_DrawKeybinds(Window: ScreenGui)
 	};
 
 	local function UpdateKeybindWindow()
+		local CurrentScale = (Compkiller.MainUIScale and Compkiller.MainUIScale.Scale) or 1;
 		Compkiller:_Animation(MainFrame,TweenInfo.new(0.4),{
-			Size = UDim2.new(1, 30, 1, UIListLayout.AbsoluteContentSize.Y + 1)
+			Size = UDim2.new(1, 30, 1, ((UIListLayout.AbsoluteContentSize.Y / CurrentScale) + 1))
 		});
 
 		if UIListLayout.AbsoluteContentSize.Y > 1 then
@@ -4416,14 +4418,15 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		EventOut:Fire(bool);
 		ToggleDb:Fire(bool);
 
-		local MUL = Window.AbsoluteSize.Y / 2;
+		local CurrentScale = (Compkiller.MainUIScale and Compkiller.MainUIScale.Scale) or 1;
+		local MUL = (Window.AbsoluteSize.Y / CurrentScale) / 2;
 
-		local MainPosition = UDim2.fromOffset(BaseParent.AbsolutePosition.X + 1,BaseParent.AbsolutePosition.Y + 80);
-		local DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset + 25);
+		local MainPosition = UDim2.fromOffset((BaseParent.AbsolutePosition.X / CurrentScale) + 1, (BaseParent.AbsolutePosition.Y / CurrentScale) + 80);
+		local DropPosition = UDim2.fromOffset(MainPosition.X.Offset, MainPosition.Y.Offset + 25);
 
 		if MainPosition.Y.Offset > MUL then -- go up
-			MainPosition = UDim2.fromOffset(BaseParent.AbsolutePosition.X + 1,BaseParent.AbsolutePosition.Y + 55);
-			DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
+			MainPosition = UDim2.fromOffset((BaseParent.AbsolutePosition.X / CurrentScale) + 1, (BaseParent.AbsolutePosition.Y / CurrentScale) + 55);
+			DropPosition = UDim2.fromOffset(MainPosition.X.Offset, MainPosition.Y.Offset - 25);
 
 			DropdownWindow.AnchorPoint = Vector2.new(0,1);
 		else
@@ -4435,10 +4438,10 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 				DropdownWindow.Position = DropPosition;
 			end;
 
-			Compkiller:_Animation(DropdownWindow,TweenInfo.new(0.2),{
+			 Compkiller:_Animation(DropdownWindow,TweenInfo.new(0.2),{
 				BackgroundTransparency = 0,
 				Position = MainPosition,
-				Size = UDim2.new(0, BaseParent.AbsoluteSize.X - 1, 0, math.clamp(UIListLayout.AbsoluteContentSize.Y + 10,10 , 200))
+				Size = UDim2.new(0, (BaseParent.AbsoluteSize.X / CurrentScale) - 1, 0, math.clamp((UIListLayout.AbsoluteContentSize.Y / CurrentScale) + 10, 10, 200))
 			})
 
 			Compkiller:_Animation(UIStroke,TweenInfo.new(0.2),{
@@ -4448,7 +4451,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 			Compkiller:_Animation(DropdownWindow,TweenInfo.new(0.2),{
 				BackgroundTransparency = 1,
 				Position = DropPosition,
-				Size = UDim2.new(0, BaseParent.AbsoluteSize.X - 1, 0, math.clamp(UIListLayout.AbsoluteContentSize.Y / 1.5, 10 , 200))
+				Size = UDim2.new(0, (BaseParent.AbsoluteSize.X / CurrentScale) - 1, 0, math.clamp((UIListLayout.AbsoluteContentSize.Y / CurrentScale) / 1.5, 10, 200))
 			})
 
 			Compkiller:_Animation(UIStroke,TweenInfo.new(0.2),{
@@ -6371,7 +6374,8 @@ function Compkiller.new(Config : Window)
 		AlwayShowTab = false,
 		THREADS = {},
 		PerformanceMode = false,
-		Notify = Compkiller.newNotify()
+		Notify = Compkiller.newNotify(),
+		MainUIScale = nil,
 	};
 
 	WindowArgs.Username = LocalPlayer.Name;
@@ -6451,6 +6455,8 @@ function Compkiller.new(Config : Window)
 
 	local MainUIScale = Instance.new("UIScale")
 	MainUIScale.Parent = MainFrame
+	WindowArgs.MainUIScale = MainUIScale
+	Compkiller.MainUIScale = MainUIScale
 
 	local function UpdateScale()
 		if Config.AutoScale then
@@ -9228,10 +9234,11 @@ function Compkiller.new(Config : Window)
 			local Offset = ListLayout.Padding.Offset;
 			local Childrens = Frame:GetChildren();
 
+			local CurrentScale = WindowArgs.MainUIScale.Scale;
 			for i,v in next ,Childrens do
 				if v:IsA('Frame') then
 					if v.LayoutOrder > last then
-						scale += v.AbsoluteSize.Y + Offset;
+						scale += (v.AbsoluteSize.Y / CurrentScale) + Offset;
 
 						last = v.LayoutOrder;
 						frame = v;
@@ -9243,11 +9250,12 @@ function Compkiller.new(Config : Window)
 				local originalScale = frame:GetAttribute('OrigninalScale');
 
 				if originalScale then
-					local Maximum = Frame.AbsoluteSize.Y;
+					local CurrentScale = WindowArgs.MainUIScale.Scale;
+					local Maximum = Frame.AbsoluteSize.Y / CurrentScale;
 
-					local remainingHeight = Maximum - ((scale) - (frame.AbsoluteSize.Y));
+					local remainingHeight = Maximum - ((scale) - (frame.AbsoluteSize.Y / CurrentScale));
 
-					if originalScale >= Frame.AbsoluteSize.Y then
+					if originalScale >= (Frame.AbsoluteSize.Y / CurrentScale) then
 						Frame:SetAttribute('LayoutStacks',originalScale + 5);
 					else
 						Frame:SetAttribute('LayoutStacks',((remainingHeight) + 5));
@@ -9272,7 +9280,7 @@ function Compkiller.new(Config : Window)
 		TabArgs.LeftThread = coroutine.wrap(function()
 			task.wait();
 
-			while true do task.wait(0.01)
+			while true do RunService.RenderStepped:Wait()
 				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
 			end;
 		end);
@@ -9280,7 +9288,7 @@ function Compkiller.new(Config : Window)
 		TabArgs.RightThread = coroutine.wrap(function()
 			task.wait(0.1);
 
-			while true do task.wait(0.01)
+			while true do RunService.RenderStepped:Wait()
 				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
 			end;
 		end);
@@ -9407,11 +9415,12 @@ function Compkiller.new(Config : Window)
 					Header.Visible = true;
 				end;
 
-				Section:SetAttribute('OrigninalScale',UIListLayout.AbsoluteContentSize.Y);
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
+				Section:SetAttribute('OrigninalScale',UIListLayout.AbsoluteContentSize.Y / CurrentScale);
 
 				if IsOpen then
-					local FullScale = Section.AbsolutePosition.Y + UIListLayout.AbsoluteContentSize.Y;
-					local RefPos = Parent.AbsolutePosition.Y + Parent.AbsoluteSize.Y;
+					local FullScale = (Section.AbsolutePosition.Y / CurrentScale) + (UIListLayout.AbsoluteContentSize.Y / CurrentScale);
+					local RefPos = (Parent.AbsolutePosition.Y / CurrentScale) + (Parent.AbsoluteSize.Y / CurrentScale);
 
 					if (Section:GetAttribute('Height') and not Compkiller:_IsMobile() and FullScale <= RefPos) then
 						Compkiller:_Animation(Section,TweenInfo.new(0.4,Enum.EasingStyle.Quint),{
@@ -9419,11 +9428,11 @@ function Compkiller.new(Config : Window)
 						});
 					else
 						Compkiller:_Animation(Section,TweenInfo.new(0.4,Enum.EasingStyle.Quint),{
-							Size = UDim2.new(1, 0, 0, math.abs(UIListLayout.AbsoluteContentSize.Y) - 1)
+							Size = UDim2.new(1, 0, 0, (math.abs(UIListLayout.AbsoluteContentSize.Y) / CurrentScale) - 1)
 						});
 
-						if Section:GetAttribute('Lasth') and UIListLayout.AbsoluteContentSize.Y > Section:GetAttribute('Lasth') then
-							Section:SetAttribute('Lasth',math.abs(UIListLayout.AbsoluteContentSize.Y) - 1);
+						if Section:GetAttribute('Lasth') and (UIListLayout.AbsoluteContentSize.Y / CurrentScale) > Section:GetAttribute('Lasth') then
+							Section:SetAttribute('Lasth',(math.abs(UIListLayout.AbsoluteContentSize.Y) / CurrentScale) - 1);
 						end;
 					end;
 
@@ -9445,11 +9454,12 @@ function Compkiller.new(Config : Window)
 				local frameFound = 0;
 				local allscale = 0;
 
-				for i,v: Frame in next , Childrens do task.wait();
+				for i,v: Frame in next , Childrens do
 					if v:IsA('Frame') then
 						if v ~= Section then
 							frameFound += 1;
-							allscale += v:GetAttribute('HEIGHTSCALE') or v.AbsoluteSize.Y;
+							local CurrentScale = WindowArgs.MainUIScale.Scale;
+							allscale += v:GetAttribute('HEIGHTSCALE') or (v.AbsoluteSize.Y / CurrentScale);
 
 							if v.LayoutOrder < Section.LayoutOrder then
 								if WindowArgs.THREADS[v] then
@@ -9470,9 +9480,11 @@ function Compkiller.new(Config : Window)
 				if Latest >= frameFound then
 					local lscale = 25;
 
-					if allscale >= (Parent.AbsoluteSize.Y - lscale) or UIListLayout.AbsoluteContentSize.Y >= (Parent.AbsoluteSize.Y - lscale) then
+					local CurrentScale = WindowArgs.MainUIScale.Scale;
+					if allscale >= ((Parent.AbsoluteSize.Y / CurrentScale) - lscale) or (UIListLayout.AbsoluteContentSize.Y / CurrentScale) >= ((Parent.AbsoluteSize.Y / CurrentScale) - lscale) then
 						Section:SetAttribute('Height',nil);
 					else
+						local CurrentScale = WindowArgs.MainUIScale.Scale;
 						local parentScale = 0;
 
 						for i,v in next , Parent:GetChildren() do
@@ -9481,7 +9493,7 @@ function Compkiller.new(Config : Window)
 							end;
 						end;
 
-						local remainingHeight = UIListLayout.AbsoluteContentSize.Y + (Parent.AbsoluteSize.Y - (parentScale));
+						local remainingHeight = (UIListLayout.AbsoluteContentSize.Y / CurrentScale) + ((Parent.AbsoluteSize.Y / CurrentScale) - (parentScale));
 
 						if Section:GetAttribute('Lasth') then
 							remainingHeight = math.max(remainingHeight , Section:GetAttribute('Lasth'));
@@ -9498,7 +9510,6 @@ function Compkiller.new(Config : Window)
 			end;
 
 			Section.ChildAdded:Connect(function()
-				task.wait()
 				refreshScale();
 			end)
 
@@ -9994,16 +10005,17 @@ function Compkiller.new(Config : Window)
 		});
 
 		local function UpdateSelectionUI()
-			BlurElement.Size = UDim2.new(1, TabFrame.AbsoluteSize.X - 35, 1, 0);
-			MovementFrame.Size = UDim2.new(1, TabFrame.AbsoluteSize.X - 35, 1, 0);
+			local CurrentScale = WindowArgs.MainUIScale.Scale;
+			BlurElement.Size = UDim2.new(1, (TabFrame.AbsoluteSize.X / CurrentScale) - 35, 1, 0);
+			MovementFrame.Size = UDim2.new(1, (TabFrame.AbsoluteSize.X / CurrentScale) - 35, 1, 0);
 
 			SelectionFrame.BackgroundColor3 = Compkiller.Colors.Highlight;
 
 			if WindowArgs.SelectedTab and WindowArgs.IsOpen then
-				local vili = -(TabButtons.AbsolutePosition.Y - WindowArgs.SelectedTab.AbsolutePosition.Y) + 4;
+				local vili = -((TabButtons.AbsolutePosition.Y / CurrentScale) - (WindowArgs.SelectedTab.AbsolutePosition.Y / CurrentScale)) + 4;
 				local distance = (SelectionFrame.Position.Y.Offset - vili);
 
-				if vili < 0 or vili > TabButtons.AbsoluteSize.Y then
+				if vili < 0 or vili > (TabButtons.AbsoluteSize.Y / CurrentScale) then
 					Compkiller:_Animation(SelectionFrame , TweenInfo.new(0.1) , {
 						BackgroundTransparency = 1
 					});
@@ -10037,7 +10049,7 @@ function Compkiller.new(Config : Window)
 
 		-- Slow fallback loop for tab selection changes (no signal available)
 		task.spawn(function()
-			while true do task.wait(0.25)
+			while true do RunService.RenderStepped:Wait()
 				UpdateSelectionUI()
 			end
 		end)
