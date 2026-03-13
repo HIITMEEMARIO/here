@@ -1823,9 +1823,13 @@ function Compkiller:Drag(InputFrame: Frame, MoveFrame: Frame, Speed : number)
 		local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
 			startPos.Y.Scale, startPos.Y.Offset + delta.Y);
 
-		Compkiller:_Animation(MoveFrame,Tween,{
-			Position = position
-		});
+		if Speed and Speed > 0 then
+			Compkiller:_Animation(MoveFrame,Tween,{
+				Position = position
+			});
+		else
+			MoveFrame.Position = position
+		end
 	end;
 
 	InputFrame.InputBegan:Connect(function(input)
@@ -3388,7 +3392,7 @@ function Compkiller:_DrawKeybinds(Window: ScreenGui)
 	MovingFrame.Position = UDim2.new(1, 0, 0.5, 0)
 	MovingFrame.Size = UDim2.new(1, 30, 1, 0)
 
-	Compkiller:Drag(MovingFrame,Keybinds,0.1);
+	Compkiller:Drag(MovingFrame,Keybinds,0);
 
 	local Ref = {
 		Root = Keybinds
@@ -6932,7 +6936,7 @@ function Compkiller.new(Config : Window)
 			WindowArgs.UserSettings.Signal = Signal;
 			WindowArgs.UserSettings.Signal = Compkiller:_Blur(UserSettings,Signal);
 
-			Compkiller:Drag(UserSettings , UserSettings, 0.15);
+			Compkiller:Drag(UserSettings , UserSettings, 0);
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
 				Compkiller:_Animation(UserSettings,TweenInfo.new(0.2),{
@@ -9665,7 +9669,7 @@ function Compkiller.new(Config : Window)
 			Watermark.AnchorPoint = Vector2.new(1, 0)
 			Watermark.BackgroundColor3 = Compkiller.Colors.BGDBColor
 
-			Compkiller:Drag(Watermark , Watermark, 0.1);
+			Compkiller:Drag(Watermark , Watermark, 0);
 
 			table.insert(Compkiller.Elements.BGDBColor,{
 				Element = Watermark,
@@ -9986,7 +9990,7 @@ function Compkiller.new(Config : Window)
 		MovementFrame.Size = UDim2.new(1, 0, 1, 0)
 		MovementFrame.ZIndex = 9
 
-		Compkiller:Drag(MovementFrame,MainFrame,0.1)
+		Compkiller:Drag(MovementFrame,MainFrame,0)
 
 		SelectionFrame.Position = UDim2.new(1, 5, 0, 28)
 		SelectionFrame.Size = UDim2.new(0, 8, 0, 22)
