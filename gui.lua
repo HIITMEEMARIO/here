@@ -1567,7 +1567,12 @@ function Compkiller:GetCalculatePosition(planePos: number, planeNormal: number, 
 	return rayOrigin + (a * rayDirection);
 end;
 
-function Compkiller:_Blur(element : Frame , WindowRemote) : RBXScriptSignal
+Compkiller.__CAMERA_CFRAME = Camera.CFrame;
+Compkiller.__CAMERA_CONNECTION = RunService.Heartbeat:Connect(function()
+	Compkiller.__CAMERA_CFRAME = Camera.CFrame;
+end);
+
+function Compkiller:_Blur(Element: Frame , Signal : Signal)
 	if Compkiller.SecureMode and not Compkiller.SecurityConfig.BlurEnabled then
 		return game.Changed:Connect(function() end);
 	end;
@@ -1672,33 +1677,34 @@ function Compkiller:_Blur(element : Frame , WindowRemote) : RBXScriptSignal
 			local center = (pos0 + pos1) / 2;
 
 			BlockMesh.Offset = center
-			BlockMesh.Scale  = size / 0.0101;
-			Part.CFrame = CurrentCamera.CFrame;
+			Part.CFrame = Compkiller.__CAMERA_CFRAME;
 		end;
 	end;
 
-	local rbxsignal = CurrentCamera:GetPropertyChangedSignal('CFrame'):Connect(UpdateFunction)
-	local loopThread = UserInputService.InputChanged:Connect(function(Input)
-		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
-			pcall(UpdateFunction);
-		end;
-	end);
+	local thread;
+	local rbxsignal = Signal:Connect(function(Visible)
+		Element.Visible = Visible;
 
-	local THREAD = task.spawn(function()
-		while true do task.wait(0.1)
-			pcall(UpdateFunction);
+		if Visible then
+			if not thread then
+				thread = RunService.RenderStepped:Connect(UpdateFunction);
+			end;
+		else
+			if thread then
+				thread:Disconnect();
+				thread = nil;
+			end;
 		end;
 	end);
 
 	disconnect = function()
 		rbxsignal:Disconnect();
-		loopThread:Disconnect();
-		task.cancel(THREAD);
+		if thread then thread:Disconnect() end;
 		Part:Destroy();
 		DepthOfField:Destroy();
 	end;
 
-	element.Destroying:Connect(disconnect);
+	Element.Destroying:Connect(disconnect);
 
 	return rbxsignal;
 end;
@@ -3125,29 +3131,37 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 		Transparency = TransparencyValue;
 	end;
 
-	function Args:Update()
+	function Args:Update(Instant: boolean)
 		local MainColor = Color3.fromHSV(H , S , 1);
 		local RealColor = Color3.fromHSV(H , S , V);
 
-		Compkiller:_Animation(ColorPickBox,TweenInfo.new(0.2),{
-			BackgroundColor3 = Color3.fromHSV(H , 1 , 1)
-		});
+		if Instant then
+			ColorPickBox.BackgroundColor3 = Color3.fromHSV(H , 1 , 1);
+			ColorOpc.BackgroundColor3 = RealColor;
+			MouseMovement.Position = UDim2.fromScale(S , 1 - V);
+			ColorOptSlide.Position = UDim2.new(Transparency ,0 , 0.5 ,0);
+			ColorRGBSlide.Position = UDim2.new(0.5 ,0 , H ,0);
+		else
+			Compkiller:_Animation(ColorPickBox,TweenInfo.new(0.2),{
+				BackgroundColor3 = Color3.fromHSV(H , 1 , 1)
+			});
 
-		Compkiller:_Animation(ColorOpc,TweenInfo.new(0.2),{
-			BackgroundColor3 = RealColor
-		});
+			Compkiller:_Animation(ColorOpc,TweenInfo.new(0.2),{
+				BackgroundColor3 = RealColor
+			});
 
-		Compkiller:_Animation(MouseMovement,TweenInfo.new(0.2),{
-			Position = UDim2.fromScale(S , 1 - V)
-		});
+			Compkiller:_Animation(MouseMovement,TweenInfo.new(0.2),{
+				Position = UDim2.fromScale(S , 1 - V)
+			});
 
-		Compkiller:_Animation(ColorOptSlide,TweenInfo.new(0.2),{
-			Position = UDim2.new(Transparency ,0 , 0.5 ,0)
-		});
+			Compkiller:_Animation(ColorOptSlide,TweenInfo.new(0.2),{
+				Position = UDim2.new(Transparency ,0 , 0.5 ,0)
+			});
 
-		Compkiller:_Animation(ColorRGBSlide,TweenInfo.new(0.2),{
-			Position = UDim2.new(0.5 ,0 , H ,0)
-		});
+			Compkiller:_Animation(ColorRGBSlide,TweenInfo.new(0.2),{
+				Position = UDim2.new(0.5 ,0 , H ,0)
+			});
+		end;
 
 		TextLabel.Text = "#" .. tostring(RealColor:ToHex())
 
@@ -3208,7 +3222,7 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 
 				H = Code;
 
-				Args:Update();
+				Args:Update(true);
 			end;
 		end;
 	end);
@@ -3225,7 +3239,7 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 
 				Transparency = transparency;
 
-				Args:Update();
+				Args:Update(true);
 			end;
 		end;
 	end);
@@ -3247,7 +3261,7 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 
 				TextLabel.Text = "#" .. tostring(RealColor:ToHex())
 
-				Args:Update();
+				Args:Update(true);
 			end
 		end
 	end)
@@ -4328,6 +4342,29 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			ToggleUI(true);
 		end);
 
+		local function Update(Input, Instant)
+			local Size = math.clamp((Input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1);
+			local Value = math.floor((((config.Max - config.Min) * Size) + config.Min) * (1 / config.Increment)) / (1 / config.Increment);
+
+			if Instant then
+				SliderFill.Size = UDim2.fromScale(Size, 1);
+				SliderValue.Text = tostring(Value) .. config.Suffix;
+			else
+				Compkiller:_Animation(SliderFill, TweenInfo.new(0.1), {
+					Size = UDim2.fromScale(Size, 1)
+				});
+				SliderValue.Text = tostring(Value) .. config.Suffix;
+			end
+
+			pcall(Callback, Value);
+		end;
+
+		SliderBar.InputBegan:Connect(function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+				Dragging = true;
+				Update(Input, true);
+			end;
+		end);
 		UserInputService.InputBegan:Connect(function(Input)
 			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 				if Toggl and not Compkiller:_IsMouseOverFrame(ExtractElement) and not Compkiller:_IsMouseOverFrame(Element) then
@@ -4910,7 +4947,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal ,
 		end);
 
 		ColorPicker:SetColor(Config.Default,Config.Transparency);
-		ColorPicker:Update()
+		ColorPicker:Update(false);
 
 		local Args = {};
 
@@ -4921,7 +4958,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal ,
 			Config.Transparency = opc;
 
 			ColorPicker:SetColor(value,opc);
-			ColorPicker:Update();
+			ColorPicker:Update(false);
 
 			Config.Callback(value,opc);
 		end;
@@ -5287,7 +5324,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal ,
 
 		local IsHold = false;
 
-		local Update = function(Input)
+		local Update = function(Input, Instant)
 			local SizeScale = math.clamp((((Input.Position.X) - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X), 0, 1);
 
 			local Main = ((Config.Max - Config.Min) * SizeScale) + Config.Min;
@@ -5298,9 +5335,13 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal ,
 
 			local Size = (Value - Config.Min) / (Config.Max - Config.Min);
 
-			TweenService:Create(SliderInput , TweenInfo.new(0.2),{
-				Size = UDim2.new(math.clamp(Size,0.045,1), 0, 1, 0)
-			}):Play();
+			if Instant then
+				SliderInput.Size = UDim2.new(math.clamp(Size,0.045,1), 0, 1, 0);
+			else
+				TweenService:Create(SliderInput , TweenInfo.new(0.2),{
+					Size = UDim2.new(math.clamp(Size,0.045,1), 0, 1, 0)
+				}):Play();
+			end;
 
 			Config.Default = Value;
 
@@ -5313,7 +5354,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal ,
 			SliderBar.InputBegan:Connect(function(Input)
 				if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 					IsHold = true
-					Update(Input)
+					Update(Input, true)
 				end
 			end)
 
@@ -5336,10 +5377,10 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal ,
 							if not Compkiller:_IsMouseOverFrame(SliderBar) then
 								IsHold = false
 							else
-								Update(Input)
+								Update(Input, true)
 							end;
 						else
-							Update(Input)
+							Update(Input, true)
 						end;
 					end;
 				end;
@@ -7562,18 +7603,11 @@ function Compkiller.new(Config : Window)
 			Scrolling.CanvasSize = UDim2.fromOffset(0,(UilistLayout.AbsoluteContentSize.Y / factor) + 5)
 		end;
 
-		UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(upd);
+		UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			task.defer(upd);
+		end);
 
-		return task.defer(function()
-			while true do task.wait(1)
-				upd();
-			end;
-		end)
-
-		--[[local Parent: ScrollingFrame = UilistLayout.Parent;
-
-		Parent = Parent or Scrolling;
-
+		return;
 		local Detection = function()
 			local Target = (UilistLayout.AbsoluteContentSize.Y);
 
@@ -8833,7 +8867,13 @@ function Compkiller.new(Config : Window)
 			Left.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y)
+				local factor = 1
+				local Screen = Left:FindFirstAncestorWhichIsA("ScreenGui")
+				if Screen then
+					local Scale = Screen:FindFirstChildWhichIsA("UIScale")
+					if Scale then factor = Scale.Scale end
+				end
+				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y / factor)
 			end)
 
 			UIListLayout.Parent = Left
@@ -8865,7 +8905,13 @@ function Compkiller.new(Config : Window)
 			Upvalue.RightLayout = UIListLayout_2;
 
 			UIListLayout_2:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y)
+				local factor = 1
+				local Screen = Right:FindFirstAncestorWhichIsA("ScreenGui")
+				if Screen then
+					local Scale = Screen:FindFirstChildWhichIsA("UIScale")
+					if Scale then factor = Scale.Scale end
+				end
+				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y / factor)
 			end)
 
 			UIListLayout_2.Parent = Right
@@ -9265,43 +9311,25 @@ function Compkiller.new(Config : Window)
 					if originalScale >= Maximum then
 						Frame:SetAttribute('LayoutStacks',originalScale + 5);
 					else
-						Frame:SetAttribute('LayoutStacks',((remainingHeight) + 5));
 					end
+				end
+			end
 
-					local caller = WindowArgs.THREADS[frame];
+			TabArgs.SectionInfo = {};
+			TabArgs.SectionClose = {
+				[Upvalue.Left] = {},
+				[Upvalue.Right] = {},
+			};
 
-					if caller then
-						caller(true);
-					end;
-				end;
-			end;
-		end;
+			local function updateLeft() TabArgs:_UpdateScrolling(Upvalue.Left, Upvalue.LeftLayout) end;
+		local function updateRight() TabArgs:_UpdateScrolling(Upvalue.Right, Upvalue.RightLayout) end;
 
-		TabArgs.SectionInfo = {};
-
-		TabArgs.SectionClose = {
-			[Upvalue.Left] = {},
-			[Upvalue.Right] = {},
-		};
-
-		TabArgs.LeftThread = coroutine.wrap(function()
-			task.wait();
-
-			while true do task.wait(0.01)
-				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
-			end;
-		end);
-
-		TabArgs.RightThread = coroutine.wrap(function()
-			task.wait(0.1);
-
-			while true do task.wait(0.01)
-				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
-			end;
-		end);
-
-		--TabArgs.LeftThread();
-		--TabArgs.RightThread();
+		Upvalue.LeftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() task.defer(updateLeft) end);
+		Upvalue.RightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() task.defer(updateRight) end);
+		Upvalue.Left.ChildAdded:Connect(function() task.defer(updateLeft) end);
+		Upvalue.Right.ChildAdded:Connect(function() task.defer(updateRight) end);
+		Upvalue.Left.ChildRemoved:Connect(function() task.defer(updateLeft) end);
+		Upvalue.Right.ChildRemoved:Connect(function() task.defer(updateRight) end);
 
 		function TabArgs:DrawSection(config: Section)
 			config = Compkiller.__CONFIG(config,{
@@ -10049,15 +10077,9 @@ function Compkiller.new(Config : Window)
 			end;
 		end
 
-		-- Instant response for size/position changes
-		TabFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateSelectionUI)
-
-		-- Slow fallback loop for tab selection changes (no signal available)
-		task.spawn(function()
-			while true do task.wait(0.25)
-				UpdateSelectionUI()
-			end
-		end)
+		-- Signal-based updates for tab selection/size
+		TabFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateSelectionUI);
+		TabButtons.ChildAdded:Connect(function() task.defer(UpdateSelectionUI) end);
 	end);
 
 	WindowArgs:Update();
