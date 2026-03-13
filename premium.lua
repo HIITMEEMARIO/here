@@ -238,6 +238,16 @@ local Config = {
     Character_SprintSpeedEnabled = false,
     Character_SprintSpeed = 25,
 
+    -- Melee Aura
+    Melee_Enabled = false,
+    Melee_AuraRange = 12,
+    Melee_SpoofedReach = 10,
+    Melee_Cooldown = 0.01,
+    Melee_TargetPlayers = true,
+    Melee_TargetZombies = true,
+    Melee_TargetNPCs = true,
+    Melee_TargetPart = "Head",
+
     -- Vehicle Turret Settings
     TurretUnlockFiremodes = false,
     TurretNoRecoil = false,
@@ -493,6 +503,22 @@ local function BulkScan(retry) -- High performance scanning engine
             if not EffectsService and not found.EffectsService and rawget(obj, "BulletLand") and rawget(obj, "BulletFired") then
                 found.EffectsService = obj
             end
+            
+            -- MeleeTable
+            if not MeleeTable and not found.MeleeTable then
+                local isMelee = false
+                pcall(function()
+                    for k, v in pairs(obj) do
+                        if type(v) == "table" and rawget(v, "Reach") and rawget(v, "Time") then
+                            isMelee = true
+                            break
+                        end
+                    end
+                end)
+                if isMelee then
+                    found.MeleeTable = obj
+                end
+            end
 
             -- Network
             if not Network and not found.Network then
@@ -580,6 +606,7 @@ local function BulkScan(retry) -- High performance scanning engine
     InventoryService = logService("InventoryService", found.InventoryService) or InventoryService
     CalibersTable = logService("CalibersTable", found.CalibersTable) or CalibersTable
     EffectsService = logService("EffectsService", found.EffectsService) or EffectsService
+    MeleeTable = logService("MeleeTable", found.MeleeTable) or MeleeTable
     CharacterController = logService("CharacterController", found.CharacterController) or CharacterController
     ControllerService = logService("ControllerService", found.ControllerService) or ControllerService
     FirearmInventoryClass = logService("FirearmInventoryClass", found.FirearmInventoryClass) or FirearmInventoryClass
@@ -1120,16 +1147,16 @@ function ActorManager:Update(dt)
             else
                 enemyN = enemyN + 1
                 self.Enemies[enemyN] = actor
+            end
 
-                -- SPATIAL PARTITIONING: Bucket enemy into sector
-                local actorPos = actor.Position or (actor.RootPart and actor.RootPart.Position)
-                if actorPos then
-                    local sectorKey = GetSectorKey(actorPos, self._sectorSize)
-                    if not self._sectors[sectorKey] then
-                        self._sectors[sectorKey] = {}
-                    end
-                    table.insert(self._sectors[sectorKey], actor)
+            -- SPATIAL PARTITIONING: Bucket ALL live actors into sectors (for Melee Aura / Visuals)
+            local actorPos = actor.Position or (actor.RootPart and actor.RootPart.Position)
+            if actorPos then
+                local sectorKey = GetSectorKey(actorPos, self._sectorSize)
+                if not self._sectors[sectorKey] then
+                    self._sectors[sectorKey] = {}
                 end
+                table.insert(self._sectors[sectorKey], actor)
             end
         end
 
@@ -1544,6 +1571,9 @@ GetCombatTarget = function(mode)
 
     -- 1. FAST PRE-FILTER & SCORE (Single pass, minimal allocations)
     for _, actor in pairs(enemyList) do
+        -- Teammate check (now required because _sectors contains everyone)
+        if actor._isTeammate then continue end
+
         -- Quick alive check
         if not actor.Alive then continue end
         if actor.Downed then continue end -- F3: Skip incapacitated targets
@@ -2676,6 +2706,98 @@ local function UpdateCombat(frameId)
                             end
                         end
                     end -- hasAmmo
+                end
+            end
+        end
+
+        -- MELEE AURA LOGIC (OPTIMIZED)
+        if cfg.Melee_Enabled and Network then
+            local nowTime = tick()
+            local lastHit = _genv._lastMeleeAttack or 0
+            
+            -- Dynamic Reach & Cooldown from Game Config
+            local weaponBuild = equippedController and rawget(equippedController, "_build")
+            local mConfig = MeleeTable and weaponBuild and MeleeTable[weaponBuild]
+            local meleeReach = (mConfig and mConfig.Reach) or (equippedController and rawget(equippedController, "_distance")) or cfg.Melee_AuraRange or 12
+            local cooldown = (mConfig and mConfig.Time) or (equippedController and rawget(equippedController, "_timer")) or cfg.Melee_Cooldown or 0.5
+            
+            if nowTime - lastHit >= (cooldown * 0.95) then
+                local bestTarget = nil
+                local bestDistSq = (meleeReach + 2) * (meleeReach + 2) -- Buffer for movement
+                local localActor = ReplicatorService and ReplicatorService.LocalActor
+                
+                if localActor and localActor.Character and localActor.Character.PrimaryPart then
+                    local localPos = localActor.Character.PrimaryPart.Position
+                    
+                    -- SECTOR-BASED SCAN (10x faster)
+                    local px, pz = DecodeSectorKey(ActorManager._playerSector or 0)
+                    for dx = -1, 1 do
+                        for dz = -1, 1 do
+                            local key = (px+dx) * 65536 + (pz+dz)
+                            local sector = ActorManager._sectors and ActorManager._sectors[key]
+                            if sector then
+                                for i = 1, #sector do
+                                    local targetActor = sector[i]
+                                    if targetActor == localActor or not targetActor.Alive or targetActor.Downed then continue end
+                                    if targetActor._isTeammate then continue end -- Skip teammates
+                                    
+                                    local isPlayer = (targetActor.Player ~= nil or targetActor.UserId ~= nil) and not targetActor.Zombie
+                                    local isZombie = targetActor.Zombie ~= nil or targetActor.ZombieType ~= nil
+                                    local isNPC = not isPlayer and not isZombie
+                                    
+                                    if isPlayer and not cfg.Melee_TargetPlayers then continue end
+                                    if isZombie and not cfg.Melee_TargetZombies then continue end
+                                    if isNPC and not cfg.Melee_TargetNPCs then continue end
+                                    
+                                    local targetPos = targetActor.Position or 
+                                        (targetActor.Character and targetActor.Character.PrimaryPart and targetActor.Character.PrimaryPart.Position)
+                                        
+                                    if targetPos then
+                                        local d = targetPos - localPos
+                                        local dSq = d.X*d.X + d.Y*d.Y + d.Z*d.Z
+                                        if dSq < bestDistSq then
+                                            bestDistSq = dSq
+                                            bestTarget = targetActor
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    if bestTarget then
+                        _genv._lastMeleeAttack = nowTime
+                        
+                        local targetPartName = cfg.Melee_TargetPart or "Head"
+                        local targetPart = (bestTarget.Character and bestTarget.Character:FindFirstChild(targetPartName)) or 
+                                           (bestTarget.Character and bestTarget.Character.PrimaryPart)
+                        
+                        local targetPos = (targetPart and targetPart.Position) or bestTarget.Position or VECTOR3_ZERO
+                        
+                        -- Calculate Attack Vector
+                        local dist = math_sqrt(bestDistSq)
+                        local direction = (targetPos - localPos).Unit
+                        local spoofedReach = (mConfig and mConfig.Reach) or cfg.Melee_SpoofedReach or 10
+                        local hitPos = localPos + direction * math_min(dist, spoofedReach)
+                        
+                        -- Hitpos table (1 decimal rounding)
+                        local hitPosTable = {
+                            math_floor(hitPos.X * 10) / 10,
+                            math_floor(hitPos.Y * 10) / 10,
+                            math_floor(hitPos.Z * 10) / 10
+                        }
+                        
+                        local targetId = bestTarget.UID or bestTarget
+                        
+                        -- Execution
+                        pcall(function()
+                            Network:FireServer("InventoryAction", "Slash", math_random(1, 3))
+                        end)
+                        
+                        pcall(function()
+                            Network:FireServer("InventoryAction", "Impact", hitPosTable, targetId, targetPartName)
+                        end)
+                    end
                 end
             end
         end
@@ -4253,11 +4375,22 @@ local function RefreshCachedCfg()
     _cachedCfg.VehicleHealthBarSide = Config.VehicleHealthBarSide
     _cachedCfg.VehicleBoxStyle = Config.VehicleBoxStyle
     _cachedCfg.IgnoreLocalVehicle = Config.IgnoreLocalVehicle
+
+    -- Melee Cache
+    _cachedCfg.Melee_Enabled = Config.Melee_Enabled
+    _cachedCfg.Melee_AuraRange = Config.Melee_AuraRange
+    _cachedCfg.Melee_SpoofedReach = Config.Melee_SpoofedReach
+    _cachedCfg.Melee_Cooldown = Config.Melee_Cooldown
+    _cachedCfg.Melee_TargetPlayers = Config.Melee_TargetPlayers
+    _cachedCfg.Melee_TargetZombies = Config.Melee_TargetZombies
+    _cachedCfg.Melee_TargetNPCs = Config.Melee_TargetNPCs
+    _cachedCfg.Melee_TargetPart = Config.Melee_TargetPart
+
     -- OPTIMIZATION: Pre-compute combat active flag (avoids 10 Config lookups per frame)
     _cachedCfg._combatActive = Config.SilentAim or Config.RageMode or Config.ShowWeaponInfo
         or Config.ShowPrediction or Config.ShowFOV
         or Config.NoRecoil or Config.NoSpread or Config.CustomRPM
-        or Config.TurretNoRecoil or Config.TurretNoSpread
+        or Config.TurretNoRecoil or Config.TurretNoSpread or Config.Melee_Enabled
 
     -- OPTIMIZATION: Cache Camera values once per frame (avoids per-actor Camera property reads)
     -- Camera.FieldOfView and ViewportSize would otherwise be read once per enemy (~20x per frame)
@@ -4296,7 +4429,7 @@ local function ProcessESPList(list, localSquad, cachedCfg)
 end
 
 local function UpdateESP()
-    if not ESPEnabled and not Config.HitboxExpander then return end
+    if not ESPEnabled and not Config.HitboxExpander and not Config.Melee_Enabled then return end
     if not ReplicatorService then return end
 
     CurrentFrameId = CurrentFrameId + 1
@@ -4365,6 +4498,7 @@ local successWindow, errWindow = pcall(function()
         Logo = Compkiller.Logo,
         Scale = Compkiller.Scale.Window,
         TextSize = 15,
+        AutoScale = true
     })
 end)
 
@@ -4809,6 +4943,46 @@ S_GunMods:AddSlider({
     Flag = "Combat_RPMValue",
     Callback = function(v)
         Config.RPMValue = v
+    end
+})
+
+-- Melee Aura Section
+local S_Melee = CombatTab:DrawSection({ Name = "Melee Aura", Position = "left" })
+
+S_Melee:AddToggle({
+    Name = "Enabled",
+    Flag = "Melee_Enabled",
+    Default = false,
+    Callback = function(v)
+        Config.Melee_Enabled = v
+        _cachedCfg._combatActive = true -- Force combat loop to run
+    end
+})
+
+S_Melee:AddToggle({
+    Name = "Target Players",
+    Flag = "Melee_TargetPlayers",
+    Default = true,
+    Callback = function(v)
+        Config.Melee_TargetPlayers = v
+    end
+})
+
+S_Melee:AddToggle({
+    Name = "Target Zombies",
+    Flag = "Melee_TargetZombies",
+    Default = true,
+    Callback = function(v)
+        Config.Melee_TargetZombies = v
+    end
+})
+
+S_Melee:AddToggle({
+    Name = "Target NPCs",
+    Flag = "Melee_TargetNPCs",
+    Default = true,
+    Callback = function(v)
+        Config.Melee_TargetNPCs = v
     end
 })
 
@@ -6036,7 +6210,7 @@ RunService:BindToRenderStep("BRM5_Premium_ESP", Enum.RenderPriority.Camera.Value
     end
 
     -- ESP: skip entirely when disabled
-    if ESPEnabled or Config.HitboxExpander then
+    if ESPEnabled or Config.HitboxExpander or Config.Melee_Enabled then
         UpdateESP()
     end
 
