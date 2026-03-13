@@ -4058,10 +4058,11 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		local Release = function()
 			local scale = Update()
 
+			local CurrentScale = WindowArgs.MainUIScale.Scale;
 			Compkiller:_Animation(Helper.Text,TweenInfo.new(0.15),{
 				TextTransparency = 1,
 				BackgroundTransparency = 1,
-				Position = UDim2.fromOffset(Button.AbsolutePosition.X,Button.AbsolutePosition.Y + (45))
+				Position = UDim2.fromOffset(Button.AbsolutePosition.X / CurrentScale,(Button.AbsolutePosition.Y / CurrentScale) + (45))
 			});
 
 			Compkiller:_Animation(Helper.UIStroke,TweenInfo.new(0.15),{
@@ -4071,15 +4072,16 @@ function Compkiller:_LoadOption(Value , TabSignal)
 
 		local Hold = function()
 			local scale = Update()
+			local CurrentScale = WindowArgs.MainUIScale.Scale;
 
 			if not Helper.Text.Visible then
-				Helper.Text.Position = UDim2.fromOffset(Button.AbsolutePosition.X,Button.AbsolutePosition.Y + (45))
+				Helper.Text.Position = UDim2.fromOffset(Button.AbsolutePosition.X / CurrentScale,(Button.AbsolutePosition.Y / CurrentScale) + (45))
 			end;
 
 			Compkiller:_Animation(Helper.Text,TweenInfo.new(0.15),{
 				TextTransparency = 0.35,
 				BackgroundTransparency = 0,
-				Position = UDim2.fromOffset(Button.AbsolutePosition.X,Button.AbsolutePosition.Y + (40 - (scale.Y / 2)))
+				Position = UDim2.fromOffset(Button.AbsolutePosition.X / CurrentScale,(Button.AbsolutePosition.Y / CurrentScale) + (40 - (scale.Y / 2)))
 			});
 
 			Compkiller:_Animation(Helper.UIStroke,TweenInfo.new(0.15),{
@@ -4212,14 +4214,13 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		local ToggleUI = function(bool)
 			local IsSameValue = bool == Toggl;
 
-			Toggl = bool;
-
-			local MainPosition = UDim2.fromOffset(Element.AbsolutePosition.X,Element.AbsolutePosition.Y + 80);
+			local CurrentScale = WindowArgs.MainUIScale.Scale;
+			local MainPosition = UDim2.fromOffset(Element.AbsolutePosition.X / CurrentScale, (Element.AbsolutePosition.Y / CurrentScale) + 80);
 			local DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset + 15);
-			local MUL = Window.AbsoluteSize.Y / 2;
+			local MUL = (Window.AbsoluteSize.Y / CurrentScale) / 2;
 
-			if MainPosition.Y.Offset > MUL then -- go up
-				MainPosition = UDim2.fromOffset(Element.AbsolutePosition.X,Element.AbsolutePosition.Y + 45);
+			if (MainPosition.Y.Offset + (40 / CurrentScale)) > MUL then -- go up
+				MainPosition = UDim2.fromOffset(Element.AbsolutePosition.X / CurrentScale, (Element.AbsolutePosition.Y / CurrentScale) + 45);
 				DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
 				ExtractElement.AnchorPoint = Vector2.new(0,1)
 			else
@@ -4409,7 +4410,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	UIListLayout.Padding = UDim.new(0, 10)
 
 	UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-		ScrollingFrame.CanvasSize = UDim2.fromOffset(UIListLayout.AbsoluteContentSize.X,UIListLayout.AbsoluteContentSize.Y)
+		local CurrentScale = (Compkiller.MainUIScale and Compkiller.MainUIScale.Scale) or 1;
+		ScrollingFrame.CanvasSize = UDim2.fromOffset(UIListLayout.AbsoluteContentSize.X / CurrentScale,UIListLayout.AbsoluteContentSize.Y / CurrentScale)
 	end);
 
 	local ToggleUI = function(bool)
@@ -6407,7 +6409,8 @@ function Compkiller.new(Config : Window)
 	Compkiller:_DrawKeybinds(CompKiller);
 
 	UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-		TabButtonScrollingFrame.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y)
+		local CurrentScale = MainUIScale.Scale;
+		TabButtonScrollingFrame.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y / CurrentScale)
 	end);
 
 	CompKiller.Name = "u?name=compkiller_?"..Compkiller:_RandomString();
@@ -6954,8 +6957,9 @@ function Compkiller.new(Config : Window)
 			Compkiller:Drag(UserSettings , UserSettings, 0);
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
 				Compkiller:_Animation(UserSettings,TweenInfo.new(0.2),{
-					Size = UDim2.new(0, 235, 0, UIListLayout.AbsoluteContentSize.Y + 50)
+					Size = UDim2.new(0, 235, 0, (UIListLayout.AbsoluteContentSize.Y / CurrentScale) + 50)
 				})
 			end);
 
@@ -7557,9 +7561,10 @@ function Compkiller.new(Config : Window)
 	function WindowArgs:AddUnbind(UilistLayout: UIListLayout , Scrolling)
 
 		local upd = function()
+			local CurrentScale = (Compkiller.MainUIScale and Compkiller.MainUIScale.Scale) or 1;
 			Scrolling.ScrollingEnabled = true
 			UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
-			Scrolling.CanvasSize = UDim2.fromOffset(0,UilistLayout.AbsoluteContentSize.Y + 5)
+			Scrolling.CanvasSize = UDim2.fromOffset(0,(UilistLayout.AbsoluteContentSize.Y / CurrentScale) + 5)
 		end;
 
 		UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(upd);
@@ -8833,7 +8838,8 @@ function Compkiller.new(Config : Window)
 			Left.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y)
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
+				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y / CurrentScale)
 			end)
 
 			UIListLayout.Parent = Left
@@ -8865,7 +8871,8 @@ function Compkiller.new(Config : Window)
 			Upvalue.RightLayout = UIListLayout_2;
 
 			UIListLayout_2:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y)
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
+				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y / CurrentScale)
 			end)
 
 			UIListLayout_2.Parent = Right
@@ -9032,7 +9039,8 @@ function Compkiller.new(Config : Window)
 
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y)
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
+				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y / CurrentScale)
 			end);
 
 			UIListLayout.Parent = Left
@@ -9064,7 +9072,8 @@ function Compkiller.new(Config : Window)
 			Upvalue.RightLayout = UIListLayout_2;
 
 			UIListLayout_2:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y)
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
+				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y / CurrentScale)
 			end)
 
 			UIListLayout_2.Parent = Right
@@ -9788,8 +9797,9 @@ function Compkiller.new(Config : Window)
 			Compkiller:_Blur(BackFrame,Signal);
 
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
+				local CurrentScale = WindowArgs.MainUIScale.Scale;
 				Compkiller:_Animation(Watermark,TweenInfo.new(0.4),{
-					Size = UDim2.new(0, UIListLayout.AbsoluteContentSize.X + 8, 0, 23)
+					Size = UDim2.new(0, (UIListLayout.AbsoluteContentSize.X / CurrentScale) + 8, 0, 23)
 				});
 			end)
 
