@@ -9228,7 +9228,7 @@ function Compkiller.new(Config : Window)
 			local Offset = ListLayout.Padding.Offset;
 			local Childrens = Frame:GetChildren();
 
-			for i,v in next ,Childrens do
+			for i,v in next ,Childrens do task.wait();
 				if v:IsA('Frame') then
 					if v.LayoutOrder > last then
 						scale += v.AbsoluteSize.Y + Offset;
@@ -9239,10 +9239,14 @@ function Compkiller.new(Config : Window)
 				end;
 			end;
 
+			task.wait();
+
 			if frame then
 				local originalScale = frame:GetAttribute('OrigninalScale');
 
 				if originalScale then
+					task.wait();
+
 					local Maximum = Frame.AbsoluteSize.Y;
 
 					local remainingHeight = Maximum - ((scale) - (frame.AbsoluteSize.Y));
@@ -9253,6 +9257,8 @@ function Compkiller.new(Config : Window)
 						Frame:SetAttribute('LayoutStacks',((remainingHeight) + 5));
 					end
 
+					task.wait();
+
 					local caller = WindowArgs.THREADS[frame];
 
 					if caller then
@@ -9260,6 +9266,8 @@ function Compkiller.new(Config : Window)
 					end;
 				end;
 			end;
+
+			task.wait();
 		end;
 
 		TabArgs.SectionInfo = {};
@@ -9269,26 +9277,24 @@ function Compkiller.new(Config : Window)
 			[Upvalue.Right] = {},
 		};
 
-		-- Event listeners for instant response to content size changes
-		Upvalue.LeftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			task.spawn(function()
-				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
-			end)
-		end)
+		TabArgs.LeftThread = coroutine.wrap(function()
+			task.wait();
 
-		Upvalue.RightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			task.spawn(function()
-				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
-			end)
-		end)
-
-		-- Slow fallback loop for tab switches (no signal available)
-		task.spawn(function()
-			while true do task.wait(0.1)
+			while true do task.wait(0.01)
 				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
+			end;
+		end);
+
+		TabArgs.RightThread = coroutine.wrap(function()
+			task.wait(0.1);
+
+			while true do task.wait(0.01)
 				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
-			end
-		end)
+			end;
+		end);
+
+		--TabArgs.LeftThread();
+		--TabArgs.RightThread();
 
 		function TabArgs:DrawSection(config: Section)
 			config = Compkiller.__CONFIG(config,{
