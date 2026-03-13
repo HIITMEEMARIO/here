@@ -3865,28 +3865,21 @@ function Compkiller:_KeybindHandler(Parent: Frame , ObjectType: string , Element
 		APIRef.Update();
 	end;
 
-	local function UpdateVisibility()
-		if APIRef.Mode ~= 1 then
-			if ElementAPI:GetValue() == APIRef.On then
-				KeybindFrame:SetVisible(true);
+	APIRef.Thread = task.spawn(function()
+		while true do task.wait(0.5)
+			if APIRef.Mode ~= 1 then
+				if ElementAPI:GetValue() == APIRef.On then
+					KeybindFrame:SetVisible(true);
+				else
+					KeybindFrame:SetVisible(false);
+				end;
+
+				APIRef.Update();
 			else
 				KeybindFrame:SetVisible(false);
 			end;
-
-			APIRef.Update();
-		else
-			KeybindFrame:SetVisible(false);
 		end;
-	end
-
-	-- Hook into the main element's callback behavior
-	local OriginalCallback = ElementCFG.Callback or function() end
-	ElementCFG.Callback = function(val)
-		OriginalCallback(val)
-		UpdateVisibility()
-	end
-	
-	UpdateVisibility()
+	end)
 
 	Parent.InputEnded:Connect(function(Input,Typing)
 		if Input.UserInputType == Enum.UserInputType.MouseButton2 and not Typing then
