@@ -4166,7 +4166,7 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		Toggle.Input.MouseButton1Click:Connect(function()
 			Config.Default = not Config.Default;
 
-			Toggle:ChangeValue(Config.Default);
+			Toggle.ChangeValue(Config.Default);
 
 			Config.Callback(Config.Default);
 		end);
@@ -4178,7 +4178,7 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		function Args:SetValue(value)
 			Config.Default = value;
 
-			Toggle:ChangeValue(Config.Default);
+			Toggle.ChangeValue(Config.Default);
 
 			Config.Callback(Config.Default);
 		end;
