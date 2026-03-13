@@ -9228,7 +9228,7 @@ function Compkiller.new(Config : Window)
 			local Offset = ListLayout.Padding.Offset;
 			local Childrens = Frame:GetChildren();
 
-			for i,v in next ,Childrens do task.wait();
+			for i,v in next ,Childrens do
 				if v:IsA('Frame') then
 					if v.LayoutOrder > last then
 						scale += v.AbsoluteSize.Y + Offset;
@@ -9239,14 +9239,10 @@ function Compkiller.new(Config : Window)
 				end;
 			end;
 
-			task.wait();
-
 			if frame then
 				local originalScale = frame:GetAttribute('OrigninalScale');
 
 				if originalScale then
-					task.wait();
-
 					local Maximum = Frame.AbsoluteSize.Y;
 
 					local remainingHeight = Maximum - ((scale) - (frame.AbsoluteSize.Y));
@@ -9257,8 +9253,6 @@ function Compkiller.new(Config : Window)
 						Frame:SetAttribute('LayoutStacks',((remainingHeight) + 5));
 					end
 
-					task.wait();
-
 					local caller = WindowArgs.THREADS[frame];
 
 					if caller then
@@ -9266,8 +9260,6 @@ function Compkiller.new(Config : Window)
 					end;
 				end;
 			end;
-
-			task.wait();
 		end;
 
 		TabArgs.SectionInfo = {};
@@ -9292,7 +9284,7 @@ function Compkiller.new(Config : Window)
 
 		-- Slow fallback loop for tab switches (no signal available)
 		task.spawn(function()
-			while true do task.wait(0.5)
+			while true do task.wait(0.1)
 				TabArgs:_UpdateScrolling(Upvalue.Left , Upvalue.LeftLayout);
 				TabArgs:_UpdateScrolling(Upvalue.Right , Upvalue.RightLayout);
 			end
